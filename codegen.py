@@ -128,6 +128,18 @@ class CodeGenerator:
         """
         self.code[-1] += f"\t# {text}"
 
+    def comment(self, text: str) -> None:
+        """Appends a standalone comment line.
+
+        Args:
+            text (str): The comment text (no leading '#').
+        """
+        self.code.append(f"\t# {text}")
+
+    def empty(self) -> None:
+        """Appends an empty line."""
+        self.code.append("")
+
     def push(self) -> None:
         """Pushes the value in %rax onto the stack."""
         self.emit1("push", self.reg("rax"))
@@ -191,48 +203,31 @@ class CodeGenerator:
                 self.emit2("mov", self.reg("rax"), self.mem("rdi"))
                 return
 
-        # Fast path: if rhs is a bare literal, use it as an immediate operand
-        # directly instead of round-tripping it through the stack.
-        rhsIsLiteral = node.rhs.kind == NodeKind.NUM
-
-        if rhsIsLiteral:
-            self.genExpr(node.lhs)
-        else:
-            self.genExpr(node.rhs)
-            self.push()
-            self.genExpr(node.lhs)
-            self.pop("rdi")
+        self.genExpr(node.rhs)
+        self.push()
+        self.genExpr(node.lhs)
+        self.pop("rdi")
 
         match node.kind:
             case NodeKind.ADD:
-                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
-                self.emit2("add", rhsOperand, self.reg("rax"))
+                self.emit2("add", self.reg("rdi"), self.reg("rax"))
                 return
 
             case NodeKind.SUB:
-                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
-                self.emit2("sub", rhsOperand, self.reg("rax"))
+                self.emit2("sub", self.reg("rdi"), self.reg("rax"))
                 return
 
             case NodeKind.MUL:
-                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
-                self.emit2("imul", rhsOperand, self.reg("rax"))
+                self.emit2("imul", self.reg("rdi"), self.reg("rax"))
                 return
 
             case NodeKind.DIV:
-                # idiv cannot take an immediate operand on x86-64, so a literal
-                # rhs still needs to be materialized into a register (just via
-                # a direct mov, not push/pop).
-                if rhsIsLiteral:
-                    self.emit2("mov", self.imm(node.rhs.val), self.reg("rdi"))
-
                 self.emit0("cqo")
                 self.emit1("idiv", self.reg("rdi"))
                 return
 
             case NodeKind.EQ | NodeKind.NE | NodeKind.LT | NodeKind.LE:
-                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
-                self.emit2("cmp", rhsOperand, self.reg("rax"))
+                self.emit2("cmp", self.reg("rdi"), self.reg("rax"))
 
                 setInstruction = {
                     NodeKind.EQ: "sete",
@@ -260,6 +255,7 @@ class CodeGenerator:
         """
         match node.kind:
             case NodeKind.EXPR_STMT:
+                self.empty()
                 self.genExpr(node.lhs)
                 return
 
@@ -283,17 +279,32 @@ class CodeGenerator:
         self.code.append("main:")
 
         # Prologue.
+        self.empty()
+        self.comment("Prologue")
         self.emit1("push", self.reg("rbp"))
+        self.commentLast("save caller's frame pointer")
         self.emit2("mov", self.reg("rsp"), self.reg("rbp"))
+        self.commentLast("establish new frame pointer")
         self.emit2("sub", self.imm(function.stackSize), self.reg("rsp"))
+        self.commentLast(f"reserve {function.stackSize} bytes for locals")
+
+        if function.locals:
+            self.empty()
+            self.comment("Stack Frame:")
+            for var in function.locals:
+                self.comment(f"\t{self.mem('rbp', var.offset)}: {var.name}")
 
         for node in function.body:
             self.genStmt(node)
             assert self.depth == 0
 
         # Epilogue.
+        self.empty()
+        self.comment("Epilogue")
         self.emit2("mov", self.reg("rbp"), self.reg("rsp"))
+        self.commentLast("deallocate stack frame")
         self.emit1("pop", self.reg("rbp"))
+        self.commentLast("restore caller's frame pointer")
         self.emit0("ret")
 
         return "\n".join(self.code)
