@@ -4,8 +4,18 @@ import sys
 from dataclasses import dataclass
 from enum import Enum, auto
 
+# ===================================================
+# ==================== TOKENIZER ====================
+# ===================================================
+
 
 class TokenKind(Enum):
+    """Represents the different kinds of lexical tokens.
+
+    Args:
+        Enum (Enum): Base enumeration class.
+    """
+
     PUNCT = auto()  # Punctuators
     NUM = auto()  # Numeric literals
     EOF = auto()  # End-of-file markers
@@ -13,6 +23,8 @@ class TokenKind(Enum):
 
 @dataclass
 class Token:
+    """Represents a lexical token produced by the tokenizer."""
+
     kind: TokenKind  # Token kind
     val: int = 0  # If kind is NUM, its value
     loc: str = ""  # Token location
@@ -136,7 +148,7 @@ def tokenize(source: str) -> list[Token]:
             continue
 
         # Punctuator.
-        if source[idx] in "+-":
+        if source[idx] in "+-*/()":
             tokens.append(
                 Token(
                     kind=TokenKind.PUNCT,
@@ -155,32 +167,211 @@ def tokenize(source: str) -> list[Token]:
     return tokens
 
 
+# ================================================
+# ==================== PARSER ====================
+# ================================================
+
+
+class NodeKind(Enum):
+    """Represents the different kinds of abstract syntax tree (AST) nodes.
+
+    Args:
+        Enum (Enum): Base enumeration class.
+    """
+
+    ADD = auto()  # +
+    SUB = auto()  # -
+    MUL = auto()  # *
+    DIV = auto()  # /
+    NUM = auto()  # Integer
+
+
+@dataclass
+class Node:
+    """Represents a node in the abstract syntax tree (AST)."""
+
+    kind: NodeKind  # Node kind
+    lhs: Node | None = None  # Left hand side
+    rhs: Node | None = None  # Right hand side
+    val: int = 0  # Used if kind == NodeKind.NUM
+
+
+def expr(tokens: list[Token]) -> Node:
+    """Parses an expression.
+
+    ## Grammar:
+        expr = mul ("+" mul | "-" mul)*
+
+    Args:
+        tokens (list[Token]): The remaining token stream.
+
+    Returns:
+        Node: The root node of the parsed expression.
+    """
+    node = mul(tokens)
+
+    while True:
+        if equal(tokens[0], "+"):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.ADD, lhs=node, rhs=mul(tokens))
+            continue
+
+        if equal(tokens[0], "-"):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.SUB, lhs=node, rhs=mul(tokens))
+            continue
+
+        return node
+
+
+def mul(tokens: list[Token]) -> Node:
+    """Parses a multiplication or division expression.
+
+    ## Grammar:
+        mul = primary ("*" primary | "/" primary)*
+
+    Args:
+        tokens (list[Token]): The remaining token stream.
+
+    Returns:
+        Node: The root node of the parsed expression.
+    """
+    node = primary(tokens)
+
+    while True:
+        if equal(tokens[0], "*"):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.MUL, lhs=node, rhs=primary(tokens))
+            continue
+
+        if equal(tokens[0], "/"):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.DIV, lhs=node, rhs=primary(tokens))
+            continue
+
+        return node
+
+
+def primary(tokens: list[Token]) -> Node:
+    """Parses a primary expression.
+
+    ## Grammar:
+        primary = "(" expr ")" | num
+
+    Args:
+        tokens (list[Token]): The remaining token stream.
+
+    Returns:
+        Node: The root node of the parsed expression.
+
+    Raises:
+        SystemExit: If no valid primary expression is found.
+    """
+    if equal(tokens[0], "("):
+        tokens.pop(0)
+        node = expr(tokens)
+        skip(tokens, ")")
+        return node
+
+    tok = tokens[0]
+
+    if tok.kind == TokenKind.NUM:
+        tokens.pop(0)
+        return Node(kind=NodeKind.NUM, val=tok.val)
+
+    errorTok(tok, "expected an expression")
+
+
+# ========================================================
+# ==================== CODE GENERATOR ====================
+# ========================================================
+
+depth = 0
+
+
+def push() -> None:
+    """Pushes the value in %rax onto the stack."""
+    global depth
+
+    print("\tpush %rax")
+    depth += 1
+
+
+def pop(arg: str) -> None:
+    """Pops the top value from the stack into the specified register.
+
+    Args:
+        arg (str): The destination register.
+    """
+    global depth
+
+    print(f"\tpop {arg}")
+    depth -= 1
+
+
+def genExpr(node: Node) -> None:
+    """Generates assembly code for an expression.
+
+    Args:
+        node (Node): The root node of the expression to generate.
+
+    Raises:
+        SystemExit: If the expression node kind is invalid.
+    """
+    if node.kind == NodeKind.NUM:
+        print(f"\tmov ${node.val}, %rax")
+        return
+
+    genExpr(node.rhs)
+    push()
+    genExpr(node.lhs)
+    pop("%rdi")
+
+    match node.kind:
+        case NodeKind.ADD:
+            print("\tadd %rdi, %rax")
+            return
+
+        case NodeKind.SUB:
+            print("\tsub %rdi, %rax")
+            return
+
+        case NodeKind.MUL:
+            print("\timul %rdi, %rax")
+            return
+
+        case NodeKind.DIV:
+            print("\tcqo")
+            print("\tidiv %rdi")
+            return
+
+    error("invalid expression")
+
+
 def main() -> None:
+    global currentInput
+
     if len(sys.argv) != 2:
         error(f"{sys.argv[0]}: invalid number of arguments")
 
-    global currentInput
+    # Tokenize and parse.
     currentInput = sys.argv[1]
-
     tokens = tokenize(currentInput)
+    node = expr(tokens)
+
+    if tokens[0].kind != TokenKind.EOF:
+        errorTok(tokens[0], "extra token")
 
     print("\t.globl main")
     print("main:")
 
-    # The first token must be a number.
-    print(f"\tmov ${getNumber(tokens.pop(0))}, %rax")
+    depth = 0
 
-    # ... followed by either `+ <number>` or `- <number>`.
-    while tokens[0].kind != TokenKind.EOF:
-        if equal(tokens[0], "+"):
-            tokens.pop(0)
-            print(f"\tadd ${getNumber(tokens.pop(0))}, %rax")
-            continue
-
-        skip(tokens, "-")
-        print(f"\tsub ${getNumber(tokens.pop(0))}, %rax")
-
+    # Traverse the AST to emit assembly.
+    genExpr(node)
     print("\tret")
+
+    assert depth == 0
 
 
 if __name__ == "__main__":
