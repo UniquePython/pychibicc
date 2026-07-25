@@ -183,6 +183,7 @@ class NodeKind(Enum):
     SUB = auto()  # -
     MUL = auto()  # *
     DIV = auto()  # /
+    NEG = auto()  # unary -
     NUM = auto()  # Integer
 
 
@@ -228,7 +229,7 @@ def mul(tokens: list[Token]) -> Node:
     """Parses a multiplication or division expression.
 
     ## Grammar:
-        mul = primary ("*" primary | "/" primary)*
+        mul = unary ("*" unary | "/" unary)*
 
     Args:
         tokens (list[Token]): The remaining token stream.
@@ -236,20 +237,44 @@ def mul(tokens: list[Token]) -> Node:
     Returns:
         Node: The root node of the parsed expression.
     """
-    node = primary(tokens)
+    node = unary(tokens)
 
     while True:
         if equal(tokens[0], "*"):
             tokens.pop(0)
-            node = Node(kind=NodeKind.MUL, lhs=node, rhs=primary(tokens))
+            node = Node(kind=NodeKind.MUL, lhs=node, rhs=unary(tokens))
             continue
 
         if equal(tokens[0], "/"):
             tokens.pop(0)
-            node = Node(kind=NodeKind.DIV, lhs=node, rhs=primary(tokens))
+            node = Node(kind=NodeKind.DIV, lhs=node, rhs=unary(tokens))
             continue
 
         return node
+
+
+def unary(tokens: list[Token]) -> Node:
+    """Parses a unary expression.
+
+    ## Grammar:
+        unary = ("+" | "-") unary
+              | primary
+
+    Args:
+        tokens (list[Token]): The remaining token stream.
+
+    Returns:
+        Node: The root node of the parsed expression.
+    """
+    if equal(tokens[0], "+"):
+        tokens.pop(0)
+        return unary(tokens)
+
+    if equal(tokens[0], "-"):
+        tokens.pop(0)
+        return Node(kind=NodeKind.NEG, lhs=unary(tokens))
+
+    return primary(tokens)
 
 
 def primary(tokens: list[Token]) -> Node:
@@ -318,9 +343,15 @@ def genExpr(node: Node) -> None:
     Raises:
         SystemExit: If the expression node kind is invalid.
     """
-    if node.kind == NodeKind.NUM:
-        print(f"\tmov ${node.val}, %rax")
-        return
+    match node.kind:
+        case NodeKind.NUM:
+            print(f"\tmov ${node.val}, %rax")
+            return
+
+        case NodeKind.NEG:
+            genExpr(node.lhs)
+            print("\tneg %rax")
+            return
 
     genExpr(node.rhs)
     push()
@@ -364,8 +395,6 @@ def main() -> None:
 
     print("\t.globl main")
     print("main:")
-
-    depth = 0
 
     # Traverse the AST to emit assembly.
     genExpr(node)
