@@ -14,9 +14,9 @@ class TokenKind(Enum):
 @dataclass
 class Token:
     kind: TokenKind  # Token kind
-    nextToken: Token | None = None  # Next token
     val: int = 0  # If kind is NUM, its value
     loc: str = ""  # Token location
+    pos: int = 0  # Token starting position
     length: int = 0  # Token length
 
 
@@ -24,7 +24,7 @@ def error(message: str) -> None:
     """Reports an error and exits.
 
     Args:
-        message (str): The error message to be printed
+        message (str): The error message to be printed.
     """
     print(message, file=sys.stderr)
     sys.exit(1)
@@ -40,25 +40,23 @@ def equal(tok: Token, op: str) -> bool:
     Returns:
         bool: True if the token exactly matches the operator, otherwise False.
     """
-    return tok.loc[: tok.length] == op
+    return tok.loc == op
 
 
-def skip(tok: Token, s: str) -> Token:
+def skip(tokens: list[Token], s: str) -> None:
     """Consumes the current token if it matches the expected string.
 
     Args:
-        tok (Token): The current token.
+        tokens (list[Token]): The remaining token stream.
         s (str): The expected token text.
-
-    Returns:
-        Token: The next token after the consumed token.
 
     Raises:
         SystemExit: If the current token does not match the expected string.
     """
+    tok = tokens.pop(0)
+
     if not equal(tok, s):
         error(f"expected '{s}'")
-    return tok.nextToken
 
 
 def getNumber(tok: Token) -> int:
@@ -75,20 +73,20 @@ def getNumber(tok: Token) -> int:
     """
     if tok.kind != TokenKind.NUM:
         error("expected a number")
+
     return tok.val
 
 
-def tokenize(source: str) -> Token:
-    """Tokenizes the input source into a linked list of tokens.
+def tokenize(source: str) -> list[Token]:
+    """Tokenizes the input source into a list of tokens.
 
     Args:
         source (str): The source code to tokenize.
 
     Returns:
-        Token: The head of the token list.
+        list[Token]: The list of generated tokens.
     """
-    head = Token(TokenKind.EOF)
-    cur = head
+    tokens: list[Token] = []
     idx = 0
 
     while idx < len(source):
@@ -104,59 +102,58 @@ def tokenize(source: str) -> Token:
             while idx < len(source) and source[idx].isdigit():
                 idx += 1
 
-            tok = Token(
-                kind=TokenKind.NUM,
-                val=int(source[start:idx]),
-                loc=source[start:idx],
-                length=idx - start,
+            tokens.append(
+                Token(
+                    kind=TokenKind.NUM,
+                    val=int(source[start:idx]),
+                    loc=source[start:idx],
+                    pos=start,
+                    length=idx - start,
+                )
             )
-
-            cur.nextToken = tok
-            cur = tok
             continue
 
         # Punctuator.
         if source[idx] in "+-":
-            tok = Token(
-                kind=TokenKind.PUNCT,
-                loc=source[idx],
-                length=1,
+            tokens.append(
+                Token(
+                    kind=TokenKind.PUNCT,
+                    loc=source[idx],
+                    pos=idx,
+                    length=1,
+                )
             )
 
-            cur.nextToken = tok
-            cur = tok
             idx += 1
             continue
 
         error("invalid token")
 
-    cur.nextToken = Token(TokenKind.EOF)
-    return head.nextToken
+    tokens.append(Token(TokenKind.EOF))
+    return tokens
 
 
 def main() -> None:
     if len(sys.argv) != 2:
         error(f"{sys.argv[0]}: invalid number of arguments")
 
-    tok = tokenize(sys.argv[1])
+    tokens = tokenize(sys.argv[1])
 
     print("\t.globl main")
     print("main:")
 
     # The first token must be a number.
-    print(f"\tmov ${getNumber(tok)}, %rax")
-    tok = tok.nextToken
+    print(f"\tmov ${getNumber(tokens.pop(0))}, %rax")
 
     # ... followed by either `+ <number>` or `- <number>`.
-    while tok.kind != TokenKind.EOF:
-        if equal(tok, "+"):
-            print(f"\tadd ${getNumber(tok.nextToken)}, %rax")
-            tok = tok.nextToken.nextToken
+    while tokens[0].kind != TokenKind.EOF:
+        if equal(tokens[0], "+"):
+            tokens.pop(0)
+            print(f"\tadd ${getNumber(tokens.pop(0))}, %rax")
             continue
 
-        tok = skip(tok, "-")
-        print(f"\tsub ${getNumber(tok)}, %rax")
-        tok = tok.nextToken
+        skip(tokens, "-")
+        print(f"\tsub ${getNumber(tokens.pop(0))}, %rax")
 
     print("\tret")
 
