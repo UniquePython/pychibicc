@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from objects import Obj
@@ -24,6 +24,7 @@ class NodeKind(Enum):
     LE = auto()  # <=
     ASSIGN = auto()  # =
     RETURN = auto()  # "return"
+    BLOCK = auto()  # { ... }
     EXPR_STMT = auto()  # Expression statement
     VAR = auto()  # Variable
     NUM = auto()  # Integer
@@ -36,5 +37,8 @@ class Node:
     kind: NodeKind  # Node kind
     lhs: Node | None = None  # Left-hand side
     rhs: Node | None = None  # Right-hand side
+
+    body: list[Node] = field(default_factory=list)  # Block
+
     val: int = 0  # Used if kind == NodeKind.NUM
     var: Obj = ""  # Used if kind == NodeKind.VAR

@@ -265,6 +265,11 @@ class CodeGenerator:
             SystemExit: If the statement node kind is invalid.
         """
         match node.kind:
+            case NodeKind.BLOCK:
+                for stmt in node.body:
+                    self.genStmt(stmt)
+                return
+
             case NodeKind.RETURN:
                 self.genExpr(node.lhs)
                 self.emit1("jmp", self.label("return"))
@@ -277,16 +282,16 @@ class CodeGenerator:
 
         error("invalid statement")
 
-    def codegen(self, function: Function) -> str:
-        """Generates assembly code for the specified function.
+    def codegen(self, program: Function) -> str:
+        """Generates assembly code for the specified program.
 
         Args:
-            function (Function): The function to generate code for.
+            program (Function): The program to generate code for.
 
         Returns:
             str: The generated assembly code.
         """
-        assignLVarOffsets(function)
+        assignLVarOffsets(program)
 
         if self.syntax == "intel":
             self.code.append("\t.intel_syntax noprefix")
@@ -301,18 +306,17 @@ class CodeGenerator:
         self.commentLast("save caller's frame pointer")
         self.emit2("mov", self.reg("rsp"), self.reg("rbp"))
         self.commentLast("establish new frame pointer")
-        self.emit2("sub", self.imm(function.stackSize), self.reg("rsp"))
-        self.commentLast(f"reserve {function.stackSize} bytes for locals")
+        self.emit2("sub", self.imm(program.stackSize), self.reg("rsp"))
+        self.commentLast(f"reserve {program.stackSize} bytes for locals")
 
-        if function.locals:
+        if program.locals:
             self.empty()
             self.comment("Stack Frame:")
-            for var in function.locals:
+            for var in program.locals:
                 self.comment(f"\t{self.mem('rbp', var.offset)}: {var.name}")
 
-        for node in function.body:
-            self.genStmt(node)
-            assert self.depth == 0
+        self.genStmt(program.body)
+        assert self.depth == 0
 
         self.empty()
         self.code.append(self.label("return") + ":")

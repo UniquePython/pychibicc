@@ -53,6 +53,7 @@ class Parser:
 
         ## Grammar:
             stmt = "return" expr ";"
+                | "{" compound-stmt
                 | expr-stmt
 
         Returns:
@@ -69,7 +70,32 @@ class Parser:
             self.skip(";")
             return node
 
+        if equal(self.tokens[0], "{"):
+            self.tokens.pop(0)
+            return self.compoundStmt()
+
         return self.exprStmt()
+
+    def compoundStmt(self) -> Node:
+        """Parses a compound statement.
+
+        ## Grammar:
+            compound-stmt = stmt* "}"
+
+        Returns:
+            Node: The root node of the parsed compound statement.
+        """
+        body: list[Node] = []
+
+        while not equal(self.tokens[0], "}"):
+            body.append(self.stmt())
+
+        self.skip("}")
+
+        return Node(
+            kind=NodeKind.BLOCK,
+            body=body,
+        )
 
     def exprStmt(self) -> Node:
         """Parses an expression statement.
@@ -335,17 +361,14 @@ class Parser:
         """Parses the token stream.
 
         ## Grammar:
-            program = stmt*
+            program = "{" stmt* "}"
 
         Returns:
             Function: The parsed function.
         """
-        body: list[Node] = []
-
-        while self.tokens[0].kind != TokenKind.EOF:
-            body.append(self.stmt())
+        self.skip("{")
 
         return Function(
-            body=body,
+            body=self.compoundStmt(),
             locals=self.locals,
         )
