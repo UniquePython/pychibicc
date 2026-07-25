@@ -30,6 +30,34 @@ class Parser:
         if not equal(tok, s):
             errorTok(self.source, tok, f"expected '{s}'")
 
+    def stmt(self) -> Node:
+        """Parses a statement.
+
+        ## Grammar:
+            stmt = expr-stmt
+
+        Returns:
+            Node: The root node of the parsed expression.
+        """
+        return self.exprStmt()
+
+    def exprStmt(self) -> Node:
+        """Parses an expression statement.
+
+        ## Grammar:
+            expr-stmt = expr ";"
+
+        Returns:
+            Node: The root node of the parsed expression.
+        """
+        node = Node(
+            kind=NodeKind.EXPR_STMT,
+            lhs=self.expr(),
+        )
+
+        self.skip(";")
+        return node
+
     def expr(self) -> Node:
         """Parses an expression.
 
@@ -239,18 +267,21 @@ class Parser:
 
         errorTok(self.source, tok, "expected an expression")
 
-    def parse(self) -> Node:
+    def parse(self) -> list[Node]:
         """Parses the token stream.
 
+        ## Grammar:
+            program = stmt*
+
         Returns:
-            Node: The root node of the parsed abstract syntax tree.
+            list[Node]: The list of parsed statements.
 
         Raises:
             SystemExit: If extra tokens remain after parsing.
         """
-        node = self.expr()
+        nodes: list[Node] = []
 
-        if self.tokens[0].kind != TokenKind.EOF:
-            errorTok(self.source, self.tokens[0], "extra token")
+        while self.tokens[0].kind != TokenKind.EOF:
+            nodes.append(self.stmt())
 
-        return node
+        return nodes

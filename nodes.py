@@ -20,6 +20,7 @@ class NodeKind(Enum):
     NE = auto()  # !=
     LT = auto()  # <
     LE = auto()  # <=
+    EXPR_STMT = auto()  # Expression statement
     NUM = auto()  # Integer
 
 

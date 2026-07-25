@@ -144,11 +144,27 @@ class CodeGenerator:
 
         error("invalid expression")
 
-    def codegen(self, node: Node) -> str:
-        """Generates assembly code for the specified abstract syntax tree.
+    def genStmt(self, node: Node) -> None:
+        """Generates assembly code for a statement.
 
         Args:
-            node (Node): The root node of the abstract syntax tree.
+            node (Node): The statement node to generate.
+
+        Raises:
+            SystemExit: If the statement node kind is invalid.
+        """
+        match node.kind:
+            case NodeKind.EXPR_STMT:
+                self.genExpr(node.lhs)
+                return
+
+        error("invalid statement")
+
+    def codegen(self, nodes: list[Node]) -> str:
+        """Generates assembly code for the specified abstract syntax trees.
+
+        Args:
+            nodes (list[Node]): The list of statement nodes.
 
         Returns:
             str: The generated assembly code.
@@ -159,9 +175,10 @@ class CodeGenerator:
         self.code.append("\t.globl main")
         self.code.append("main:")
 
-        self.genExpr(node)
-        self.emit0("ret")
+        for node in nodes:
+            self.genStmt(node)
+            assert self.depth == 0
 
-        assert self.depth == 0
+        self.emit0("ret")
 
         return "\n".join(self.code)
