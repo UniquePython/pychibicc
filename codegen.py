@@ -91,6 +91,14 @@ class CodeGenerator:
         """
         self.code.append(f"\t{mnemonic}")
 
+    def commentLast(self, text: str) -> None:
+        """Appends a trailing comment to the most recently emitted line.
+
+        Args:
+            text (str): The comment text (no leading '#').
+        """
+        self.code[-1] += f"\t# {text}"
+
     def push(self) -> None:
         """Pushes the value in %rax onto the stack."""
         self.emit1("push", self.reg("rax"))
@@ -118,6 +126,7 @@ class CodeGenerator:
             case NodeKind.VAR:
                 offset = (ord(node.name) - ord("a") + 1) * 8
                 self.emit2("lea", self.mem("rbp", -offset), self.reg("rax"))
+                self.commentLast(node.name)
                 return
 
         error("not an lvalue")
