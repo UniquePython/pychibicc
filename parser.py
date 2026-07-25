@@ -1,3 +1,5 @@
+from collections import deque
+
 from error import errorTok
 from functions import Function
 from nodes import Node, NodeKind
@@ -16,7 +18,7 @@ class Parser:
             tokens (list[Token]): The token stream to parse.
         """
         self.source: str = source
-        self.tokens: list[Token] = tokens
+        self.tokens: deque[Token] = deque(tokens)
         self.locals: list[Obj] = []
 
     def skip(self, s: str) -> None:
@@ -28,7 +30,7 @@ class Parser:
         Raises:
             SystemExit: If the current token does not match the expected string.
         """
-        tok = self.tokens.pop(0)
+        tok = self.tokens.popleft()
 
         if not equal(tok, s):
             errorTok(self.source, tok, f"expected '{s}'")
@@ -61,7 +63,7 @@ class Parser:
             Node: The root node of the parsed statement.
         """
         if equal(self.tokens[0], "return"):
-            self.tokens.pop(0)
+            self.tokens.popleft()
 
             node = Node(
                 kind=NodeKind.RETURN,
@@ -72,7 +74,7 @@ class Parser:
             return node
 
         if equal(self.tokens[0], "if"):
-            self.tokens.pop(0)
+            self.tokens.popleft()
 
             node = Node(kind=NodeKind.IF)
 
@@ -83,13 +85,13 @@ class Parser:
             node.then = self.stmt()
 
             if equal(self.tokens[0], "else"):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node.els = self.stmt()
 
             return node
 
         if equal(self.tokens[0], "{"):
-            self.tokens.pop(0)
+            self.tokens.popleft()
             return self.compoundStmt()
 
         return self.exprStmt()
@@ -125,7 +127,7 @@ class Parser:
             Node: The root node of the parsed expression statement.
         """
         if equal(self.tokens[0], ";"):
-            self.tokens.pop(0)
+            self.tokens.popleft()
             return Node(kind=NodeKind.BLOCK)
 
         node = Node(
@@ -159,7 +161,7 @@ class Parser:
         node = self.equality()
 
         if equal(self.tokens[0], "="):
-            self.tokens.pop(0)
+            self.tokens.popleft()
             node = Node(
                 kind=NodeKind.ASSIGN,
                 lhs=node,
@@ -181,7 +183,7 @@ class Parser:
 
         while True:
             if equal(self.tokens[0], "=="):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.EQ,
                     lhs=node,
@@ -190,7 +192,7 @@ class Parser:
                 continue
 
             if equal(self.tokens[0], "!="):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.NE,
                     lhs=node,
@@ -213,7 +215,7 @@ class Parser:
 
         while True:
             if equal(self.tokens[0], "<"):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LT,
                     lhs=node,
@@ -222,7 +224,7 @@ class Parser:
                 continue
 
             if equal(self.tokens[0], "<="):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LE,
                     lhs=node,
@@ -231,7 +233,7 @@ class Parser:
                 continue
 
             if equal(self.tokens[0], ">"):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LT,
                     lhs=self.add(),
@@ -240,7 +242,7 @@ class Parser:
                 continue
 
             if equal(self.tokens[0], ">="):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LE,
                     lhs=self.add(),
@@ -263,7 +265,7 @@ class Parser:
 
         while True:
             if equal(self.tokens[0], "+"):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.ADD,
                     lhs=node,
@@ -272,7 +274,7 @@ class Parser:
                 continue
 
             if equal(self.tokens[0], "-"):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.SUB,
                     lhs=node,
@@ -295,7 +297,7 @@ class Parser:
 
         while True:
             if equal(self.tokens[0], "*"):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.MUL,
                     lhs=node,
@@ -304,7 +306,7 @@ class Parser:
                 continue
 
             if equal(self.tokens[0], "/"):
-                self.tokens.pop(0)
+                self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.DIV,
                     lhs=node,
@@ -325,11 +327,11 @@ class Parser:
             Node: The root node of the parsed expression.
         """
         if equal(self.tokens[0], "+"):
-            self.tokens.pop(0)
+            self.tokens.popleft()
             return self.unary()
 
         if equal(self.tokens[0], "-"):
-            self.tokens.pop(0)
+            self.tokens.popleft()
             return Node(
                 kind=NodeKind.NEG,
                 lhs=self.unary(),
@@ -350,7 +352,7 @@ class Parser:
             SystemExit: If no valid primary expression is found.
         """
         if equal(self.tokens[0], "("):
-            self.tokens.pop(0)
+            self.tokens.popleft()
             node = self.expr()
             self.skip(")")
             return node
@@ -364,14 +366,14 @@ class Parser:
                 var = Obj(name=tok.loc)
                 self.locals.append(var)
 
-            self.tokens.pop(0)
+            self.tokens.popleft()
             return Node(
                 kind=NodeKind.VAR,
                 var=var,
             )
 
         if tok.kind == TokenKind.NUM:
-            self.tokens.pop(0)
+            self.tokens.popleft()
             return Node(
                 kind=NodeKind.NUM,
                 val=tok.val,
