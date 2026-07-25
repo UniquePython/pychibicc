@@ -52,11 +52,23 @@ class Parser:
         """Parses a statement.
 
         ## Grammar:
-            stmt = expr-stmt
+            stmt = "return" expr ";"
+                | expr-stmt
 
         Returns:
-            Node: The root node of the parsed expression.
+            Node: The root node of the parsed statement.
         """
+        if equal(self.tokens[0], "return"):
+            self.tokens.pop(0)
+
+            node = Node(
+                kind=NodeKind.RETURN,
+                lhs=self.expr(),
+            )
+
+            self.skip(";")
+            return node
+
         return self.exprStmt()
 
     def exprStmt(self) -> Node:

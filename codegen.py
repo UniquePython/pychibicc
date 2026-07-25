@@ -120,6 +120,17 @@ class CodeGenerator:
         """
         self.code.append(f"\t{mnemonic}")
 
+    def label(self, name: str) -> str:
+        """Formats a compiler-generated label.
+
+        Args:
+            name (str): The label name without a leading `.`
+
+        Returns:
+            str: The formatted label.
+        """
+        return f".pychibicc.{name}"
+
     def commentLast(self, text: str) -> None:
         """Appends a trailing comment to the most recently emitted line.
 
@@ -254,6 +265,11 @@ class CodeGenerator:
             SystemExit: If the statement node kind is invalid.
         """
         match node.kind:
+            case NodeKind.RETURN:
+                self.genExpr(node.lhs)
+                self.emit1("jmp", self.label("return"))
+                return
+
             case NodeKind.EXPR_STMT:
                 self.empty()
                 self.genExpr(node.lhs)
@@ -298,9 +314,8 @@ class CodeGenerator:
             self.genStmt(node)
             assert self.depth == 0
 
-        # Epilogue.
         self.empty()
-        self.comment("Epilogue")
+        self.code.append(self.label("return") + ":")
         self.emit2("mov", self.reg("rbp"), self.reg("rsp"))
         self.commentLast("deallocate stack frame")
         self.emit1("pop", self.reg("rbp"))

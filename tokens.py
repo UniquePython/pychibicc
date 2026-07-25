@@ -11,6 +11,7 @@ class TokenKind(Enum):
 
     IDENT = auto()  # Identifiers
     PUNCT = auto()  # Punctuators
+    KEYWORD = auto()  # Keywords
     NUM = auto()  # Numeric literals
     EOF = auto()  # End-of-file markers
 

@@ -23,6 +23,7 @@ class NodeKind(Enum):
     LT = auto()  # <
     LE = auto()  # <=
     ASSIGN = auto()  # =
+    RETURN = auto()  # "return"
     EXPR_STMT = auto()  # Expression statement
     VAR = auto()  # Variable
     NUM = auto()  # Integer
