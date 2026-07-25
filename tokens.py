@@ -37,3 +37,47 @@ def equal(tok: Token, op: str) -> bool:
         bool: True if the token exactly matches the operator, otherwise False.
     """
     return tok.loc == op
+
+
+def isIdentFirst(c: str) -> bool:
+    """Returns whether the character is valid as the first character of an identifier.
+
+    Args:
+        c (str): The character to test.
+
+    Returns:
+        bool: True if the character is a valid first identifier character,
+            otherwise False.
+    """
+    return ("a" <= c <= "z") or ("A" <= c <= "Z") or c == "_"
+
+
+def isIdentNonFirst(c: str) -> bool:
+    """Returns whether the character is valid as a non-first character of an identifier.
+
+    Args:
+        c (str): The character to test.
+
+    Returns:
+        bool: True if the character is a valid non-first identifier character,
+            otherwise False.
+    """
+    return isIdentFirst(c) or ("0" <= c <= "9")
+
+
+def readPunct(source: str) -> int:
+    """Reads a punctuator from the beginning of the string.
+
+    Args:
+        source (str): The source string to read from.
+
+    Returns:
+        int: The length of the punctuator, or 0 if none is found.
+    """
+    if source.startswith(("==", "!=", "<=", ">=")):
+        return 2
+
+    if source and source[0] in "+-*/()<>!={}[],;":
+        return 1
+
+    return 0

@@ -1,5 +1,34 @@
 from error import error
+from functions import Function
 from nodes import Node, NodeKind
+
+
+def alignTo(n: int, align: int) -> int:
+    """Rounds up a value to the nearest multiple of the specified alignment.
+
+    Args:
+        n (int): The value to align.
+        align (int): The alignment boundary.
+
+    Returns:
+        int: The aligned value.
+    """
+    return (n + align - 1) // align * align
+
+
+def assignLVarOffsets(function: Function) -> None:
+    """Assigns stack offsets to local variables.
+
+    Args:
+        function (Function): The function whose local variables are to be assigned offsets.
+    """
+    offset = 0
+
+    for var in function.locals:
+        offset += 8
+        var.offset = -offset
+
+    function.stackSize = alignTo(offset, 16)
 
 
 class CodeGenerator:
@@ -124,9 +153,8 @@ class CodeGenerator:
         """
         match node.kind:
             case NodeKind.VAR:
-                offset = (ord(node.name) - ord("a") + 1) * 8
-                self.emit2("lea", self.mem("rbp", -offset), self.reg("rax"))
-                self.commentLast(node.name)
+                self.emit2("lea", self.mem("rbp", node.var.offset), self.reg("rax"))
+                self.commentLast(node.var.name)
                 return
 
         error("not an lvalue")
@@ -237,29 +265,33 @@ class CodeGenerator:
 
         error("invalid statement")
 
-    def codegen(self, nodes: list[Node]) -> str:
-        """Generates assembly code for the specified abstract syntax trees.
+    def codegen(self, function: Function) -> str:
+        """Generates assembly code for the specified function.
 
         Args:
-            nodes (list[Node]): The list of statement nodes.
+            function (Function): The function to generate code for.
 
         Returns:
             str: The generated assembly code.
         """
+        assignLVarOffsets(function)
+
         if self.syntax == "intel":
             self.code.append("\t.intel_syntax noprefix")
 
         self.code.append("\t.globl main")
         self.code.append("main:")
 
+        # Prologue.
         self.emit1("push", self.reg("rbp"))
         self.emit2("mov", self.reg("rsp"), self.reg("rbp"))
-        self.emit2("sub", self.imm(208), self.reg("rsp"))
+        self.emit2("sub", self.imm(function.stackSize), self.reg("rsp"))
 
-        for node in nodes:
+        for node in function.body:
             self.genStmt(node)
             assert self.depth == 0
 
+        # Epilogue.
         self.emit2("mov", self.reg("rbp"), self.reg("rsp"))
         self.emit1("pop", self.reg("rbp"))
         self.emit0("ret")

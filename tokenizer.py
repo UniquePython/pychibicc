@@ -1,5 +1,5 @@
 from error import errorAt, errorTok
-from tokens import Token, TokenKind
+from tokens import Token, TokenKind, isIdentFirst, isIdentNonFirst, readPunct
 
 
 class Tokenizer:
@@ -29,24 +29,6 @@ class Tokenizer:
             errorTok(self.source, tok, "expected a number")
 
         return tok.val
-
-    @staticmethod
-    def readPunct(source: str) -> int:
-        """Reads a punctuator from the beginning of the string.
-
-        Args:
-            source (str): The source string to read from.
-
-        Returns:
-            int: The length of the punctuator, or 0 if none is found.
-        """
-        if source.startswith(("==", "!=", "<=", ">=")):
-            return 2
-
-        if source and source[0] in "+-*/()<>!={}[],;":
-            return 1
-
-        return 0
 
     def tokenize(self) -> list[Token]:
         """Tokenizes the source code into a list of tokens.
@@ -82,21 +64,25 @@ class Tokenizer:
                 continue
 
             # Identifier.
-            if "a" <= self.source[idx] <= "z":
+            if isIdentFirst(self.source[idx]):
+                start = idx
+
+                while idx < len(self.source) and isIdentNonFirst(self.source[idx]):
+                    idx += 1
+
                 tokens.append(
                     Token(
                         kind=TokenKind.IDENT,
-                        loc=self.source[idx],
-                        pos=idx,
-                        length=1,
+                        loc=self.source[start:idx],
+                        pos=start,
+                        length=idx - start,
                     )
                 )
 
-                idx += 1
                 continue
 
             # Punctuators.
-            punctLength = self.readPunct(self.source[idx:])
+            punctLength = readPunct(self.source[idx:])
 
             if punctLength:
                 tokens.append(

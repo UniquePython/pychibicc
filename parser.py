@@ -1,5 +1,7 @@
 from error import errorTok
+from functions import Function
 from nodes import Node, NodeKind
+from objects import Obj
 from tokens import Token, TokenKind, equal
 
 
@@ -13,8 +15,9 @@ class Parser:
             source (str): The source code that produced the token stream.
             tokens (list[Token]): The token stream to parse.
         """
-        self.source = source
-        self.tokens = tokens
+        self.source: str = source
+        self.tokens: list[Token] = tokens
+        self.locals: list[Obj] = []
 
     def skip(self, s: str) -> None:
         """Consumes the current token if it matches the expected string.
@@ -29,6 +32,21 @@ class Parser:
 
         if not equal(tok, s):
             errorTok(self.source, tok, f"expected '{s}'")
+
+    def findVar(self, tok: Token) -> Obj | None:
+        """Finds a local variable by name.
+
+        Args:
+            tok (Token): The identifier token to search for.
+
+        Returns:
+            Obj | None: The matching local variable, or None if no match is found.
+        """
+        for var in self.locals:
+            if var.name == tok.loc:
+                return var
+
+        return None
 
     def stmt(self) -> Node:
         """Parses a statement.
@@ -263,7 +281,7 @@ class Parser:
         """Parses a primary expression.
 
         ## Grammar:
-            primary = "(" expr ")" | num
+            primary = "(" expr ")" | ident | num
 
         Returns:
             Node: The root node of the parsed expression.
@@ -280,10 +298,16 @@ class Parser:
         tok = self.tokens[0]
 
         if tok.kind == TokenKind.IDENT:
+            var = self.findVar(tok)
+
+            if var is None:
+                var = Obj(name=tok.loc)
+                self.locals.append(var)
+
             self.tokens.pop(0)
             return Node(
                 kind=NodeKind.VAR,
-                name=tok.loc,
+                var=var,
             )
 
         if tok.kind == TokenKind.NUM:
@@ -295,21 +319,21 @@ class Parser:
 
         errorTok(self.source, tok, "expected an expression")
 
-    def parse(self) -> list[Node]:
+    def parse(self) -> Function:
         """Parses the token stream.
 
         ## Grammar:
             program = stmt*
 
         Returns:
-            list[Node]: The list of parsed statements.
-
-        Raises:
-            SystemExit: If extra tokens remain after parsing.
+            Function: The parsed function.
         """
-        nodes: list[Node] = []
+        body: list[Node] = []
 
         while self.tokens[0].kind != TokenKind.EOF:
-            nodes.append(self.stmt())
+            body.append(self.stmt())
 
-        return nodes
+        return Function(
+            body=body,
+            locals=self.locals,
+        )
