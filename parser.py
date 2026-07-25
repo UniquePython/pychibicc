@@ -101,11 +101,15 @@ class Parser:
         """Parses an expression statement.
 
         ## Grammar:
-            expr-stmt = expr ";"
+            expr-stmt = expr? ";"
 
         Returns:
-            Node: The root node of the parsed expression.
+            Node: The root node of the parsed expression statement.
         """
+        if equal(self.tokens[0], ";"):
+            self.tokens.pop(0)
+            return Node(kind=NodeKind.BLOCK)
+
         node = Node(
             kind=NodeKind.EXPR_STMT,
             lhs=self.expr(),
