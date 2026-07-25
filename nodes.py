@@ -24,6 +24,7 @@ class NodeKind(Enum):
     LE = auto()  # <=
     ASSIGN = auto()  # =
     RETURN = auto()  # "return"
+    IF = auto()  # "if"
     BLOCK = auto()  # { ... }
     EXPR_STMT = auto()  # Expression statement
     VAR = auto()  # Variable
@@ -37,6 +38,11 @@ class Node:
     kind: NodeKind  # Node kind
     lhs: Node | None = None  # Left-hand side
     rhs: Node | None = None  # Right-hand side
+
+    # "if" statement
+    cond: Node | None = None
+    then: Node | None = None
+    els: Node | None = None
 
     body: list[Node] = field(default_factory=list)  # Block
 

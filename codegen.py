@@ -44,6 +44,7 @@ class CodeGenerator:
             error(f"unknown assembly syntax: {syntax}")
 
         self.depth = 0
+        self.labelCount = 1
         self.code: list[str] = []
         self.syntax = syntax
 
@@ -131,6 +132,15 @@ class CodeGenerator:
         """
         return f".pychibicc.{name}"
 
+    def emitLabel(self, name: str) -> None:
+        """Emits a label.
+
+        Args:
+            name (str): The label name without a leading `.`.
+        """
+        self.empty()
+        self.code.append(f"{self.label(name)}:")
+
     def commentLast(self, text: str) -> None:
         """Appends a trailing comment to the most recently emitted line.
 
@@ -150,6 +160,16 @@ class CodeGenerator:
     def empty(self) -> None:
         """Appends an empty line."""
         self.code.append("")
+
+    def count(self) -> int:
+        """Returns a unique sequential identifier.
+
+        Returns:
+            int: The next unique identifier.
+        """
+        value = self.labelCount
+        self.labelCount += 1
+        return value
 
     def push(self) -> None:
         """Pushes the value in %rax onto the stack."""
@@ -265,6 +285,23 @@ class CodeGenerator:
             SystemExit: If the statement node kind is invalid.
         """
         match node.kind:
+            case NodeKind.IF:
+                c = self.count()
+
+                self.genExpr(node.cond)
+                self.emit2("cmp", self.imm(0), self.reg("rax"))
+                self.emit1("je", self.label(f"else.{c}"))
+
+                self.genStmt(node.then)
+                self.emit1("jmp", self.label(f"end.{c}"))
+
+                self.emitLabel(f"else.{c}")
+                if node.els is not None:
+                    self.genStmt(node.els)
+
+                self.emitLabel(f"end.{c}")
+                return
+
             case NodeKind.BLOCK:
                 for stmt in node.body:
                     self.genStmt(stmt)
@@ -318,8 +355,7 @@ class CodeGenerator:
         self.genStmt(program.body)
         assert self.depth == 0
 
-        self.empty()
-        self.code.append(self.label("return") + ":")
+        self.emitLabel("return")
         self.emit2("mov", self.reg("rbp"), self.reg("rsp"))
         self.commentLast("deallocate stack frame")
         self.emit1("pop", self.reg("rbp"))

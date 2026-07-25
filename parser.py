@@ -53,6 +53,7 @@ class Parser:
 
         ## Grammar:
             stmt = "return" expr ";"
+                | "if" "(" expr ")" stmt ("else" stmt)?
                 | "{" compound-stmt
                 | expr-stmt
 
@@ -68,6 +69,23 @@ class Parser:
             )
 
             self.skip(";")
+            return node
+
+        if equal(self.tokens[0], "if"):
+            self.tokens.pop(0)
+
+            node = Node(kind=NodeKind.IF)
+
+            self.skip("(")
+            node.cond = self.expr()
+            self.skip(")")
+
+            node.then = self.stmt()
+
+            if equal(self.tokens[0], "else"):
+                self.tokens.pop(0)
+                node.els = self.stmt()
+
             return node
 
         if equal(self.tokens[0], "{"):

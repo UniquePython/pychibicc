@@ -82,3 +82,31 @@ def readPunct(source: str) -> int:
         return 1
 
     return 0
+
+
+def isKeyword(tok: Token) -> bool:
+    """Returns whether the specified token is a keyword.
+
+    Args:
+        tok (Token): The token to check.
+
+    Returns:
+        bool: True if the token is a keyword, otherwise False.
+    """
+    keywords = ("return", "if", "else")
+
+    return any(equal(tok, keyword) for keyword in keywords)
+
+
+def convertKeywords(tokens: list[Token]) -> None:
+    """Converts identifier tokens that are keywords into keyword tokens.
+
+    Args:
+        tokens (list[Token]): The token stream.
+    """
+    for tok in tokens:
+        if tok.kind == TokenKind.EOF:
+            break
+
+        if isKeyword(tok):
+            tok.kind = TokenKind.KEYWORD

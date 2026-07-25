@@ -1,5 +1,12 @@
 from error import errorAt, errorTok
-from tokens import Token, TokenKind, equal, isIdentFirst, isIdentNonFirst, readPunct
+from tokens import (
+    Token,
+    TokenKind,
+    convertKeywords,
+    isIdentFirst,
+    isIdentNonFirst,
+    readPunct,
+)
 
 
 class Tokenizer:
@@ -29,19 +36,6 @@ class Tokenizer:
             errorTok(self.source, tok, "expected a number")
 
         return tok.val
-
-    def convertKeywords(self, tokens: list[Token]) -> None:
-        """Converts identifier tokens that are keywords into keyword tokens.
-
-        Args:
-            tokens (list[Token]): The token stream.
-        """
-        for tok in tokens:
-            if tok.kind == TokenKind.EOF:
-                break
-
-            if equal(tok, "return"):
-                tok.kind = TokenKind.KEYWORD
 
     def tokenize(self) -> list[Token]:
         """Tokenizes the source code into a list of tokens.
@@ -113,5 +107,5 @@ class Tokenizer:
             errorAt(self.source, idx, "invalid token")
 
         tokens.append(Token(TokenKind.EOF, pos=len(self.source)))
-        self.convertKeywords(tokens)
+        convertKeywords(tokens)
         return tokens
