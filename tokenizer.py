@@ -81,6 +81,20 @@ class Tokenizer:
                 )
                 continue
 
+            # Identifier.
+            if "a" <= self.source[idx] <= "z":
+                tokens.append(
+                    Token(
+                        kind=TokenKind.IDENT,
+                        loc=self.source[idx],
+                        pos=idx,
+                        length=1,
+                    )
+                )
+
+                idx += 1
+                continue
+
             # Punctuators.
             punctLength = self.readPunct(self.source[idx:])
 

@@ -20,7 +20,9 @@ class NodeKind(Enum):
     NE = auto()  # !=
     LT = auto()  # <
     LE = auto()  # <=
+    ASSIGN = auto()  # =
     EXPR_STMT = auto()  # Expression statement
+    VAR = auto()  # Variable
     NUM = auto()  # Integer
 
 
@@ -32,3 +34,4 @@ class Node:
     lhs: Node | None = None  # Left-hand side
     rhs: Node | None = None  # Right-hand side
     val: int = 0  # Used if kind == NodeKind.NUM
+    name: str = ""  # Used if kind == NodeKind.VAR

@@ -62,12 +62,33 @@ class Parser:
         """Parses an expression.
 
         ## Grammar:
-            expr = equality
+            expr = assign
 
         Returns:
             Node: The root node of the parsed expression.
         """
-        return self.equality()
+        return self.assign()
+
+    def assign(self) -> Node:
+        """Parses an assignment expression.
+
+        ## Grammar:
+            assign = equality ("=" assign)?
+
+        Returns:
+            Node: The root node of the parsed expression.
+        """
+        node = self.equality()
+
+        if equal(self.tokens[0], "="):
+            self.tokens.pop(0)
+            node = Node(
+                kind=NodeKind.ASSIGN,
+                lhs=node,
+                rhs=self.assign(),
+            )
+
+        return node
 
     def equality(self) -> Node:
         """Parses an equality expression.
@@ -257,6 +278,13 @@ class Parser:
             return node
 
         tok = self.tokens[0]
+
+        if tok.kind == TokenKind.IDENT:
+            self.tokens.pop(0)
+            return Node(
+                kind=NodeKind.VAR,
+                name=tok.loc,
+            )
 
         if tok.kind == TokenKind.NUM:
             self.tokens.pop(0)

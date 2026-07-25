@@ -18,6 +18,27 @@ class CodeGenerator:
         self.code: list[str] = []
         self.syntax = syntax
 
+    def mem(self, base: str, disp: int = 0) -> str:
+        """Formats a memory operand: dereference `base`, optionally offset by `disp` bytes.
+
+        Args:
+            base (str): The bare base register name (e.g. "rbp").
+            disp (int): Byte displacement, may be negative.
+
+        Returns:
+            str: The formatted memory operand for the current syntax.
+        """
+        if self.syntax == "att":
+            reg = self.reg(base)
+            return f"{disp}({reg})" if disp else f"({reg})"
+        else:
+            if disp > 0:
+                return f"[{base}+{disp}]"
+            elif disp < 0:
+                return f"[{base}{disp}]"
+            else:
+                return f"[{base}]"
+
     def reg(self, name: str) -> str:
         """Formats a register operand for the current syntax.
 
@@ -84,6 +105,23 @@ class CodeGenerator:
         self.emit1("pop", self.reg(name))
         self.depth -= 1
 
+    def genAddr(self, node: Node) -> None:
+        """Generates the absolute address of the specified node.
+
+        Args:
+            node (Node): The node whose address is to be generated.
+
+        Raises:
+            SystemExit: If the node does not represent an lvalue.
+        """
+        match node.kind:
+            case NodeKind.VAR:
+                offset = (ord(node.name) - ord("a") + 1) * 8
+                self.emit2("lea", self.mem("rbp", -offset), self.reg("rax"))
+                return
+
+        error("not an lvalue")
+
     def genExpr(self, node: Node) -> None:
         """Generates assembly code for an expression.
 
@@ -101,6 +139,19 @@ class CodeGenerator:
             case NodeKind.NEG:
                 self.genExpr(node.lhs)
                 self.emit1("neg", self.reg("rax"))
+                return
+
+            case NodeKind.VAR:
+                self.genAddr(node)
+                self.emit2("mov", self.mem("rax"), self.reg("rax"))
+                return
+
+            case NodeKind.ASSIGN:
+                self.genAddr(node.lhs)
+                self.push()
+                self.genExpr(node.rhs)
+                self.pop("rdi")
+                self.emit2("mov", self.reg("rax"), self.mem("rdi"))
                 return
 
         # Fast path: if rhs is a bare literal, use it as an immediate operand
@@ -192,10 +243,16 @@ class CodeGenerator:
         self.code.append("\t.globl main")
         self.code.append("main:")
 
+        self.emit1("push", self.reg("rbp"))
+        self.emit2("mov", self.reg("rsp"), self.reg("rbp"))
+        self.emit2("sub", self.imm(208), self.reg("rsp"))
+
         for node in nodes:
             self.genStmt(node)
             assert self.depth == 0
 
+        self.emit2("mov", self.reg("rbp"), self.reg("rsp"))
+        self.emit1("pop", self.reg("rbp"))
         self.emit0("ret")
 
         return "\n".join(self.code)

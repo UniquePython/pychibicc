@@ -9,6 +9,7 @@ class TokenKind(Enum):
         Enum (Enum): Base enumeration class.
     """
 
+    IDENT = auto()  # Identifiers
     PUNCT = auto()  # Punctuators
     NUM = auto()  # Numeric literals
     EOF = auto()  # End-of-file markers
