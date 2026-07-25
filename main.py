@@ -30,6 +30,28 @@ def error(message: str) -> None:
     sys.exit(1)
 
 
+def errorAt(pos: int, message: str) -> None:
+    """Reports an error at the specified position and exits.
+
+    Args:
+        pos (int): The position at which the error occurred.
+        message (str): The error message to be printed.
+    """
+    print(currentInput, file=sys.stderr)
+    print(" " * pos + "^ " + message, file=sys.stderr)
+    sys.exit(1)
+
+
+def errorTok(tok: Token, message: str) -> None:
+    """Reports an error at the specified token and exits.
+
+    Args:
+        tok (Token): The token at which the error occurred.
+        message (str): The error message to be printed.
+    """
+    errorAt(tok.pos, message)
+
+
 def equal(tok: Token, op: str) -> bool:
     """Returns whether the given token matches the specified operator.
 
@@ -56,7 +78,7 @@ def skip(tokens: list[Token], s: str) -> None:
     tok = tokens.pop(0)
 
     if not equal(tok, s):
-        error(f"expected '{s}'")
+        errorTok(tok, f"expected '{s}")
 
 
 def getNumber(tok: Token) -> int:
@@ -72,7 +94,7 @@ def getNumber(tok: Token) -> int:
         SystemExit: If the token is not a number token.
     """
     if tok.kind != TokenKind.NUM:
-        error("expected a number")
+        errorTok(tok, "expected a number")
 
     return tok.val
 
@@ -127,7 +149,7 @@ def tokenize(source: str) -> list[Token]:
             idx += 1
             continue
 
-        error("invalid token")
+        errorAt(idx, "invalid token")
 
     tokens.append(Token(TokenKind.EOF))
     return tokens
@@ -137,7 +159,10 @@ def main() -> None:
     if len(sys.argv) != 2:
         error(f"{sys.argv[0]}: invalid number of arguments")
 
-    tokens = tokenize(sys.argv[1])
+    global currentInput
+    currentInput = sys.argv[1]
+
+    tokens = tokenize(currentInput)
 
     print("\t.globl main")
     print("main:")
