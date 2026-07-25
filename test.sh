@@ -1,13 +1,22 @@
 #!/bin/bash
 
+build_dir="build"
+mkdir -p "$build_dir/att" "$build_dir/intel"
+
+test_num=0
+
 assert() {
     expected="$1"
     input="$2"
+    test_num=$((test_num + 1))
 
     for syntax in att intel; do
-        python3 main.py "$input" "$syntax" > tmp.s || exit 1
-        gcc -static -o tmp tmp.s
-        ./tmp
+        asm_file="$build_dir/$syntax/test${test_num}.s"
+        bin_file="$build_dir/$syntax/test${test_num}"
+
+        python3 main.py "$input" "$syntax" > "$asm_file" || exit 1
+        gcc -static -o "$bin_file" "$asm_file"
+        "$bin_file"
         actual="$?"
 
         if [ "$actual" = "$expected" ]; then
