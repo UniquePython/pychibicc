@@ -103,31 +103,48 @@ class CodeGenerator:
                 self.emit1("neg", self.reg("rax"))
                 return
 
-        self.genExpr(node.rhs)
-        self.push()
-        self.genExpr(node.lhs)
-        self.pop("rdi")
+        # Fast path: if rhs is a bare literal, use it as an immediate operand
+        # directly instead of round-tripping it through the stack.
+        rhsIsLiteral = node.rhs.kind == NodeKind.NUM
+
+        if rhsIsLiteral:
+            self.genExpr(node.lhs)
+        else:
+            self.genExpr(node.rhs)
+            self.push()
+            self.genExpr(node.lhs)
+            self.pop("rdi")
 
         match node.kind:
             case NodeKind.ADD:
-                self.emit2("add", self.reg("rdi"), self.reg("rax"))
+                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
+                self.emit2("add", rhsOperand, self.reg("rax"))
                 return
 
             case NodeKind.SUB:
-                self.emit2("sub", self.reg("rdi"), self.reg("rax"))
+                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
+                self.emit2("sub", rhsOperand, self.reg("rax"))
                 return
 
             case NodeKind.MUL:
-                self.emit2("imul", self.reg("rdi"), self.reg("rax"))
+                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
+                self.emit2("imul", rhsOperand, self.reg("rax"))
                 return
 
             case NodeKind.DIV:
+                # idiv cannot take an immediate operand on x86-64, so a literal
+                # rhs still needs to be materialized into a register (just via
+                # a direct mov, not push/pop).
+                if rhsIsLiteral:
+                    self.emit2("mov", self.imm(node.rhs.val), self.reg("rdi"))
+
                 self.emit0("cqo")
                 self.emit1("idiv", self.reg("rdi"))
                 return
 
             case NodeKind.EQ | NodeKind.NE | NodeKind.LT | NodeKind.LE:
-                self.emit2("cmp", self.reg("rdi"), self.reg("rax"))
+                rhsOperand = self.imm(node.rhs.val) if rhsIsLiteral else self.reg("rdi")
+                self.emit2("cmp", rhsOperand, self.reg("rax"))
 
                 setInstruction = {
                     NodeKind.EQ: "sete",
