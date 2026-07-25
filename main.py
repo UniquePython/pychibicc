@@ -111,6 +111,24 @@ def getNumber(tok: Token) -> int:
     return tok.val
 
 
+def readPunct(source: str) -> int:
+    """Reads a punctuator from the beginning of the string.
+
+    Args:
+        source (str): The source string to read from.
+
+    Returns:
+        int: The length of the punctuator, or 0 if none is found.
+    """
+    if source.startswith(("==", "!=", "<=", ">=")):
+        return 2
+
+    if source and source[0] in "+-*/()<>!={}[],;":
+        return 1
+
+    return 0
+
+
 def tokenize(source: str) -> list[Token]:
     """Tokenizes the input source into a list of tokens.
 
@@ -147,18 +165,20 @@ def tokenize(source: str) -> list[Token]:
             )
             continue
 
-        # Punctuator.
-        if source[idx] in "+-*/()":
+        # Punctuators.
+        punctLength = readPunct(source[idx:])
+
+        if punctLength:
             tokens.append(
                 Token(
                     kind=TokenKind.PUNCT,
-                    loc=source[idx],
+                    loc=source[idx : idx + punctLength],
                     pos=idx,
-                    length=1,
+                    length=punctLength,
                 )
             )
 
-            idx += 1
+            idx += punctLength
             continue
 
         errorAt(idx, "invalid token")
@@ -184,6 +204,10 @@ class NodeKind(Enum):
     MUL = auto()  # *
     DIV = auto()  # /
     NEG = auto()  # unary -
+    EQ = auto()  # ==
+    NE = auto()  # !=
+    LT = auto()  # <
+    LE = auto()  # <=
     NUM = auto()  # Integer
 
 
@@ -201,7 +225,88 @@ def expr(tokens: list[Token]) -> Node:
     """Parses an expression.
 
     ## Grammar:
-        expr = mul ("+" mul | "-" mul)*
+        expr = equality
+
+    Args:
+        tokens (list[Token]): The remaining token stream.
+
+    Returns:
+        Node: The root node of the parsed expression.
+    """
+    return equality(tokens)
+
+
+def equality(tokens: list[Token]) -> Node:
+    """Parses an equality expression.
+
+    ## Grammar:
+        equality = relational ("==" relational | "!=" relational)*
+
+    Args:
+        tokens (list[Token]): The remaining token stream.
+
+    Returns:
+        Node: The root node of the parsed expression.
+    """
+    node = relational(tokens)
+
+    while True:
+        if equal(tokens[0], "=="):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.EQ, lhs=node, rhs=relational(tokens))
+            continue
+
+        if equal(tokens[0], "!="):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.NE, lhs=node, rhs=relational(tokens))
+            continue
+
+        return node
+
+
+def relational(tokens: list[Token]) -> Node:
+    """Parses a relational expression.
+
+    ## Grammar:
+        relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+
+    Args:
+        tokens (list[Token]): The remaining token stream.
+
+    Returns:
+        Node: The root node of the parsed expression.
+    """
+    node = add(tokens)
+
+    while True:
+        if equal(tokens[0], "<"):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.LT, lhs=node, rhs=add(tokens))
+            continue
+
+        if equal(tokens[0], "<="):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.LE, lhs=node, rhs=add(tokens))
+            continue
+
+        if equal(tokens[0], ">"):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.LT, lhs=add(tokens), rhs=node)
+            continue
+
+        if equal(tokens[0], ">="):
+            tokens.pop(0)
+            node = Node(kind=NodeKind.LE, lhs=add(tokens), rhs=node)
+            continue
+
+        return node
+
+
+def add(tokens: list[Token]) -> Node:
+    """Parses an addition or subtraction expression.
+
+    ## Grammar:
+        add = mul ("+" mul | "-" mul)*
 
     Args:
         tokens (list[Token]): The remaining token stream.
@@ -376,6 +481,20 @@ def genExpr(node: Node) -> None:
             print("\tidiv %rdi")
             return
 
+        case NodeKind.EQ | NodeKind.NE | NodeKind.LT | NodeKind.LE:
+            print("\tcmp %rdi, %rax")
+
+            instruction = {
+                NodeKind.EQ: "sete",
+                NodeKind.NE: "setne",
+                NodeKind.LT: "setl",
+                NodeKind.LE: "setle",
+            }[node.kind]
+
+            print(f"\t{instruction} %al")
+            print("\tmovzb %al, %rax")
+            return
+
     error("invalid expression")
 
 
@@ -401,6 +520,8 @@ def main() -> None:
     print("\tret")
 
     assert depth == 0
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":
