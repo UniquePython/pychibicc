@@ -47,4 +47,4 @@ class Node:
     body: list[Node] = field(default_factory=list)  # Block
 
     val: int = 0  # Used if kind == NodeKind.NUM
-    var: Obj = ""  # Used if kind == NodeKind.VAR
+    var: Obj | None = None  # Used if kind == NodeKind.VAR
