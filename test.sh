@@ -4,17 +4,19 @@ assert() {
     expected="$1"
     input="$2"
 
-    python3 main.py "$input" > tmp.s || exit 1
-    gcc -static -o tmp tmp.s
-    ./tmp
-    actual="$?"
+    for syntax in att intel; do
+        python3 main.py "$input" "$syntax" > tmp.s || exit 1
+        gcc -static -o tmp tmp.s
+        ./tmp
+        actual="$?"
 
-    if [ "$actual" = "$expected" ]; then
-        echo "$input => $actual"
-    else
-        echo "$input => expected $expected, but got $actual"
-        exit 1
-    fi
+        if [ "$actual" = "$expected" ]; then
+            echo "[$syntax] $input => $actual"
+        else
+            echo "[$syntax] $input => expected $expected, but got $actual"
+            exit 1
+        fi
+    done
 }
 
 assert 0 0
