@@ -7,6 +7,7 @@ from node_constructors import (
     newAdd,
     newBinary,
     newBlock,
+    newFuncall,
     newNode,
     newNum,
     newSub,
@@ -509,7 +510,8 @@ class Parser:
 
         ## Grammar:
             ```
-            primary = "(" expr ")" | ident | num
+            primary = "(" expr ")" | ident args? | num
+            args = "(" ")"
             ```
 
         Returns:
@@ -527,6 +529,15 @@ class Parser:
         tok = self.tokens[0]
 
         if tok.kind == TokenKind.IDENT:
+            # Function call
+            if len(self.tokens) > 1 and equal(self.tokens[1], "("):
+                self.tokens.popleft()  # identifier
+                self.expect("(")
+                self.expect(")")
+
+                return newFuncall(tok.loc, tok)
+
+            # Variable
             var = self.findVar(tok)
 
             if var is None:

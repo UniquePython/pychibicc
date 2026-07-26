@@ -3,6 +3,12 @@
 build_dir="build"
 mkdir -p "$build_dir/att" "$build_dir/intel"
 
+# Compile helper functions used by test cases that call external functions
+cat <<'EOF' | gcc -xc -c -o "$build_dir/tmp2.o" -
+int ret3() { return 3; }
+int ret5() { return 5; }
+EOF
+
 test_num=0
 
 assert() {
@@ -15,7 +21,7 @@ assert() {
         bin_file="$build_dir/$syntax/test${test_num}"
 
         python3 main.py "$input" "$syntax" > "$asm_file" || exit 1
-        gcc -static -o "$bin_file" "$asm_file"
+        gcc -static -o "$bin_file" "$asm_file" "$build_dir/tmp2.o"
         "$bin_file"
         actual="$?"
 
@@ -103,5 +109,8 @@ assert 7 '{ int x=3; int y=5; *(&y-2+1)=7; return x; }'
 assert 5 '{ int x=3; return (&x+2)-&x+3; }'
 assert 8 '{ int x, y; x=3; y=5; return x+y; }'
 assert 8 '{ int x=3, y=5; return x+y; }'
+
+assert 3 '{ return ret3(); }'
+assert 5 '{ return ret5(); }'
 
 echo OK

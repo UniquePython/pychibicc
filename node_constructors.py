@@ -86,6 +86,19 @@ def newVarNode(var: Obj, tok: Token) -> Node:
     return Node(kind=NodeKind.VAR, tok=tok, var=var)
 
 
+def newFuncall(funcName: str, tok: Token) -> Node:
+    """Creates a function call node.
+
+    Args:
+        funcName (str): The name of the function.
+        tok (Token): The representative token.
+
+    Returns:
+        Node: The newly created node.
+    """
+    return Node(kind=NodeKind.FUNCALL, tok=tok, funcName=funcName)
+
+
 def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> Node:
     """Creates an addition node, handling pointer arithmetic.
 

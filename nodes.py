@@ -32,6 +32,7 @@ class NodeKind(Enum):
     IF = auto()  # "if"
     FOR = auto()  # "for" or "while"
     BLOCK = auto()  # { ... }
+    FUNCALL = auto()  # Function call
     EXPR_STMT = auto()  # Expression statement
     VAR = auto()  # Variable
     NUM = auto()  # Integer
@@ -56,6 +57,9 @@ class Node:
     inc: Node | None = None
 
     body: list[Node] = field(default_factory=list)  # Block
+
+    # Function call
+    funcName: str = ""
 
     var: Obj | None = None  # Used if kind == NodeKind.VAR
     val: int = 0  # Used if kind == NodeKind.NUM
@@ -93,7 +97,14 @@ def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
         ):
             node.dtype = node.lhs.dtype
 
-        case NodeKind.EQ | NodeKind.NE | NodeKind.LT | NodeKind.LE | NodeKind.NUM:
+        case (
+            NodeKind.EQ
+            | NodeKind.NE
+            | NodeKind.LT
+            | NodeKind.LE
+            | NodeKind.NUM
+            | NodeKind.FUNCALL
+        ):
             node.dtype = dtypeInt
 
         case NodeKind.VAR:

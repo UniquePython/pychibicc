@@ -256,6 +256,11 @@ class CodeGenerator:
                 self.emit2("mov", self.reg("rax"), self.mem("rdi"))
                 return
 
+            case NodeKind.FUNCALL:
+                self.emit2("mov", self.imm(0), self.reg("rax"))
+                self.emit1("call", node.funcName)
+                return
+
         self.genExpr(node.rhs)
         self.push()
         self.genExpr(node.lhs)
