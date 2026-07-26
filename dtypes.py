@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 
+from tokens import Token
 
-class DTypeKind(Enum):
+
+class DtypeKind(Enum):
     """Represents the different kinds of types."""
 
     INT = auto()
@@ -12,38 +14,43 @@ class DTypeKind(Enum):
 
 
 @dataclass
-class DType:
+class Dtype:
     """Represents a type."""
 
-    kind: DTypeKind
-    base: DType | None = None
+    kind: DtypeKind  # Type kind
+
+    # Pointer
+    base: Dtype | None = None  # Pointee type
+
+    # Declaration
+    name: Token | None = None  # Declarator token
 
 
-dtypeInt = DType(DTypeKind.INT)
+dtypeInt = Dtype(DtypeKind.INT)
 
 
-def isInteger(dtype: DType) -> bool:
+def isInteger(dtype: Dtype) -> bool:
     """Returns whether the given type is an integer.
 
     Args:
-        dtype (DType): The type to test.
+        dtype (Dtype): The type to test.
 
     Returns:
         bool: True if the type is an integer, otherwise False.
     """
-    return dtype.kind == DTypeKind.INT
+    return dtype.kind == DtypeKind.INT
 
 
-def pointerTo(base: DType) -> DType:
+def pointerTo(base: Dtype) -> Dtype:
     """Creates a pointer type to the given base type.
 
     Args:
-        base (DType): The pointee type.
+        base (Dtype): The pointee type.
 
     Returns:
-        DType: The resulting pointer type.
+        Dtype: The resulting pointer type.
     """
-    return DType(
-        kind=DTypeKind.PTR,
+    return Dtype(
+        kind=DtypeKind.PTR,
         base=base,
     )

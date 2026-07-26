@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
-from dtypes import DType, DTypeKind, dtypeInt, pointerTo
+from dtypes import Dtype, DtypeKind, dtypeInt, pointerTo
+from error_reporter import ErrorReporter
 from objects import Obj
 from tokens import Token
 
@@ -42,7 +43,7 @@ class Node:
 
     kind: NodeKind  # Node kind
     tok: Token  # Representative token
-    dtype: DType | None = None  # Data type
+    dtype: Dtype | None = None  # Data type
 
     lhs: Node | None = None  # Left-hand side
     rhs: Node | None = None  # Right-hand side
@@ -60,25 +61,26 @@ class Node:
     val: int = 0  # Used if kind == NodeKind.NUM
 
 
-def addType(node: Node | None) -> None:
+def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
     """Annotates the AST with type information.
 
     Args:
         node (Node | None): The AST node to annotate.
+        errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
     """
     if node is None or node.dtype is not None:
         return
 
-    addType(node.lhs)
-    addType(node.rhs)
-    addType(node.cond)
-    addType(node.then)
-    addType(node.els)
-    addType(node.init)
-    addType(node.inc)
+    addType(node.lhs, errorReporter)
+    addType(node.rhs, errorReporter)
+    addType(node.cond, errorReporter)
+    addType(node.then, errorReporter)
+    addType(node.els, errorReporter)
+    addType(node.init, errorReporter)
+    addType(node.inc, errorReporter)
 
     for stmt in node.body:
-        addType(stmt)
+        addType(stmt, errorReporter)
 
     match node.kind:
         case (
@@ -91,21 +93,17 @@ def addType(node: Node | None) -> None:
         ):
             node.dtype = node.lhs.dtype
 
-        case (
-            NodeKind.EQ
-            | NodeKind.NE
-            | NodeKind.LT
-            | NodeKind.LE
-            | NodeKind.VAR
-            | NodeKind.NUM
-        ):
+        case NodeKind.EQ | NodeKind.NE | NodeKind.LT | NodeKind.LE | NodeKind.NUM:
             node.dtype = dtypeInt
+
+        case NodeKind.VAR:
+            node.dtype = node.var.dtype
 
         case NodeKind.ADDR:
             node.dtype = pointerTo(node.lhs.dtype)
 
         case NodeKind.DEREF:
-            if node.lhs.dtype.kind == DTypeKind.PTR:
-                node.dtype = node.lhs.dtype.base
-            else:
-                node.dtype = dtypeInt
+            if node.lhs.dtype.kind != DtypeKind.PTR:
+                errorReporter.errorTok(node.tok, "invalid pointer dereference")
+
+            node.dtype = node.lhs.dtype.base

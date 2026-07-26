@@ -98,8 +98,8 @@ def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
     Returns:
         Node: The newly created node.
     """
-    addType(lhs)
-    addType(rhs)
+    addType(lhs, errorReporter)
+    addType(rhs, errorReporter)
 
     # num + num
     if isInteger(lhs.dtype) and isInteger(rhs.dtype):
@@ -114,7 +114,7 @@ def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
 
     # ptr + num
     rhs = newBinary(NodeKind.MUL, rhs, newNum(8, tok), tok)
-    addType(rhs)
+    addType(rhs, errorReporter)
 
     return newBinary(NodeKind.ADD, lhs, rhs, tok)
 
@@ -131,8 +131,8 @@ def newSub(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
     Returns:
         Node: The newly created node.
     """
-    addType(lhs)
-    addType(rhs)
+    addType(lhs, errorReporter)
+    addType(rhs, errorReporter)
 
     # num - num
     if isInteger(lhs.dtype) and isInteger(rhs.dtype):
@@ -141,7 +141,7 @@ def newSub(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
     # ptr - num
     if lhs.dtype.base is not None and isInteger(rhs.dtype):
         rhs = newBinary(NodeKind.MUL, rhs, newNum(8, tok), tok)
-        addType(rhs)
+        addType(rhs, errorReporter)
 
         node = newBinary(NodeKind.SUB, lhs, rhs, tok)
         node.dtype = lhs.dtype
