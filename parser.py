@@ -1,8 +1,17 @@
 from collections import deque
 
-from dtypes import dtypeInt, isInteger
 from error_reporter import ErrorReporter
 from functions import Function
+from node_constructors import (
+    newAdd,
+    newBinary,
+    newBlock,
+    newNode,
+    newNum,
+    newSub,
+    newUnary,
+    newVarNode,
+)
 from nodes import Node, NodeKind, addType
 from objects import Obj
 from tokens import Token, TokenKind, equal
@@ -70,11 +79,7 @@ class Parser:
         if equal(self.tokens[0], "return"):
             tok = self.tokens.popleft()
 
-            node = Node(
-                kind=NodeKind.RETURN,
-                tok=tok,
-                lhs=self.expr(),
-            )
+            node = newUnary(NodeKind.RETURN, self.expr(), tok)
 
             self.skip(";")
             return node
@@ -82,7 +87,7 @@ class Parser:
         if equal(self.tokens[0], "if"):
             tok = self.tokens.popleft()
 
-            node = Node(kind=NodeKind.IF, tok=tok)
+            node = newNode(NodeKind.IF, tok)
 
             self.skip("(")
             node.cond = self.expr()
@@ -99,7 +104,7 @@ class Parser:
         if equal(self.tokens[0], "for"):
             tok = self.tokens.popleft()
 
-            node = Node(kind=NodeKind.FOR, tok=tok)
+            node = newNode(NodeKind.FOR, tok)
 
             self.skip("(")
 
@@ -119,7 +124,7 @@ class Parser:
         if equal(self.tokens[0], "while"):
             tok = self.tokens.popleft()
 
-            node = Node(kind=NodeKind.FOR, tok=tok)
+            node = newNode(NodeKind.FOR, tok)
 
             self.skip("(")
             node.cond = self.expr()
@@ -157,11 +162,7 @@ class Parser:
 
         self.skip("}")
 
-        return Node(
-            kind=NodeKind.BLOCK,
-            tok=tok,
-            body=body,
-        )
+        return newBlock(body, tok)
 
     def exprStmt(self) -> Node:
         """Parses an expression statement.
@@ -176,15 +177,11 @@ class Parser:
         """
         if equal(self.tokens[0], ";"):
             tok = self.tokens.popleft()
-            return Node(kind=NodeKind.BLOCK, tok=tok)
+            return newNode(NodeKind.BLOCK, tok)
 
         tok = self.tokens[0]
 
-        node = Node(
-            kind=NodeKind.EXPR_STMT,
-            tok=tok,
-            lhs=self.expr(),
-        )
+        node = newUnary(NodeKind.EXPR_STMT, self.expr(), tok)
 
         self.skip(";")
         return node
@@ -217,12 +214,7 @@ class Parser:
 
         if equal(self.tokens[0], "="):
             tok = self.tokens.popleft()
-            node = Node(
-                kind=NodeKind.ASSIGN,
-                tok=tok,
-                lhs=node,
-                rhs=self.assign(),
-            )
+            node = newBinary(NodeKind.ASSIGN, node, self.assign(), tok)
 
         return node
 
@@ -244,22 +236,12 @@ class Parser:
 
             if equal(self.tokens[0], "=="):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.EQ,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.relational(),
-                )
+                node = newBinary(NodeKind.EQ, node, self.relational(), start)
                 continue
 
             if equal(self.tokens[0], "!="):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.NE,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.relational(),
-                )
+                node = newBinary(NodeKind.NE, node, self.relational(), start)
                 continue
 
             return node
@@ -282,144 +264,25 @@ class Parser:
 
             if equal(self.tokens[0], "<"):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.LT,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.add(),
-                )
+                node = newBinary(NodeKind.LT, node, self.add(), start)
                 continue
 
             if equal(self.tokens[0], "<="):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.LE,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.add(),
-                )
+                node = newBinary(NodeKind.LE, node, self.add(), start)
                 continue
 
             if equal(self.tokens[0], ">"):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.LT,
-                    tok=start,
-                    lhs=self.add(),
-                    rhs=node,
-                )
+                node = newBinary(NodeKind.LT, self.add(), node, start)
                 continue
 
             if equal(self.tokens[0], ">="):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.LE,
-                    tok=start,
-                    lhs=self.add(),
-                    rhs=node,
-                )
+                node = newBinary(NodeKind.LE, self.add(), node, start)
                 continue
 
             return node
-
-    def newNum(self, val: int, tok: Token) -> Node:
-        return Node(
-            kind=NodeKind.NUM,
-            tok=tok,
-            dtype=dtypeInt,
-            val=val,
-        )
-
-    def newAdd(self, lhs: Node, rhs: Node, tok: Token) -> Node:
-        """Creates an addition node, handling pointer arithmetic."""
-
-        addType(lhs)
-        addType(rhs)
-
-        # num + num
-        if isInteger(lhs.dtype) and isInteger(rhs.dtype):
-            return Node(
-                kind=NodeKind.ADD,
-                tok=tok,
-                lhs=lhs,
-                rhs=rhs,
-            )
-
-        if lhs.dtype.base is not None and rhs.dtype.base is not None:
-            self.errorReporter.errorTok(tok, "invalid operands")
-
-        # Canonicalize num + ptr to ptr + num.
-        if lhs.dtype.base is None and rhs.dtype.base is not None:
-            lhs, rhs = rhs, lhs
-
-        # ptr + num
-        rhs = Node(
-            kind=NodeKind.MUL,
-            tok=tok,
-            lhs=rhs,
-            rhs=self.newNum(8, tok),
-        )
-        addType(rhs)
-
-        return Node(
-            kind=NodeKind.ADD,
-            tok=tok,
-            lhs=lhs,
-            rhs=rhs,
-        )
-
-    def newSub(self, lhs: Node, rhs: Node, tok: Token) -> Node:
-        """Creates a subtraction node, handling pointer arithmetic."""
-
-        addType(lhs)
-        addType(rhs)
-
-        # num - num
-        if isInteger(lhs.dtype) and isInteger(rhs.dtype):
-            return Node(
-                kind=NodeKind.SUB,
-                tok=tok,
-                lhs=lhs,
-                rhs=rhs,
-            )
-
-        # ptr - num
-        if lhs.dtype.base is not None and isInteger(rhs.dtype):
-            rhs = Node(
-                kind=NodeKind.MUL,
-                tok=tok,
-                lhs=rhs,
-                rhs=self.newNum(8, tok),
-            )
-            addType(rhs)
-
-            node = Node(
-                kind=NodeKind.SUB,
-                tok=tok,
-                lhs=lhs,
-                rhs=rhs,
-            )
-            node.dtype = lhs.dtype
-            return node
-
-        # ptr - ptr
-        if lhs.dtype.base is not None and rhs.dtype.base is not None:
-            node = Node(
-                kind=NodeKind.SUB,
-                tok=tok,
-                lhs=lhs,
-                rhs=rhs,
-            )
-            node.dtype = dtypeInt
-
-            return Node(
-                kind=NodeKind.DIV,
-                tok=tok,
-                lhs=node,
-                rhs=self.newNum(8, tok),
-            )
-
-        self.errorReporter.errorTok(tok, "invalid operands")
 
     def add(self) -> Node:
         """Parses an addition or subtraction expression.
@@ -439,12 +302,12 @@ class Parser:
 
             if equal(self.tokens[0], "+"):
                 self.tokens.popleft()
-                node = self.newAdd(node, self.mul(), start)
+                node = newAdd(node, self.mul(), start, self.errorReporter)
                 continue
 
             if equal(self.tokens[0], "-"):
                 self.tokens.popleft()
-                node = self.newSub(node, self.mul(), start)
+                node = newSub(node, self.mul(), start, self.errorReporter)
                 continue
 
             return node
@@ -467,22 +330,12 @@ class Parser:
 
             if equal(self.tokens[0], "*"):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.MUL,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.unary(),
-                )
+                node = newBinary(NodeKind.MUL, node, self.unary(), start)
                 continue
 
             if equal(self.tokens[0], "/"):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.DIV,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.unary(),
-                )
+                node = newBinary(NodeKind.DIV, node, self.unary(), start)
                 continue
 
             return node
@@ -505,27 +358,15 @@ class Parser:
 
         if equal(self.tokens[0], "-"):
             tok = self.tokens.popleft()
-            return Node(
-                kind=NodeKind.NEG,
-                tok=tok,
-                lhs=self.unary(),
-            )
+            return newUnary(NodeKind.NEG, self.unary(), tok)
 
         if equal(self.tokens[0], "&"):
             tok = self.tokens.popleft()
-            return Node(
-                kind=NodeKind.ADDR,
-                tok=tok,
-                lhs=self.unary(),
-            )
+            return newUnary(NodeKind.ADDR, self.unary(), tok)
 
         if equal(self.tokens[0], "*"):
             tok = self.tokens.popleft()
-            return Node(
-                kind=NodeKind.DEREF,
-                tok=tok,
-                lhs=self.unary(),
-            )
+            return newUnary(NodeKind.DEREF, self.unary(), tok)
 
         return self.primary()
 
@@ -559,19 +400,11 @@ class Parser:
                 self.locals.append(var)
 
             self.tokens.popleft()
-            return Node(
-                kind=NodeKind.VAR,
-                tok=tok,
-                var=var,
-            )
+            return newVarNode(var, tok)
 
         if tok.kind == TokenKind.NUM:
             self.tokens.popleft()
-            return Node(
-                kind=NodeKind.NUM,
-                tok=tok,
-                val=tok.val,
-            )
+            return newNum(tok.val, tok)
 
         self.errorReporter.errorTok(tok, "expected an expression")
 
