@@ -1,20 +1,32 @@
 import sys
 
-from codegen import CodeGenerator
+from codegen import CodeGenerator, Syntax
 from error_reporter import ErrorReporter
 from parser import Parser
 from tokenizer import Tokenizer
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
+    if not (2 <= len(sys.argv) <= 3):
         ErrorReporter.error(
             f"{sys.argv[0]}: invalid number of arguments\n"
-            "Usage: main.py <source> <att|intel>"
+            "Usage: main.py <source> [att|intel]"
         )
 
     source = sys.argv[1]
-    syntax = sys.argv[2]
+
+    if len(sys.argv) == 3:
+        syntaxStr = sys.argv[2]
+
+        try:
+            syntax = Syntax(syntaxStr)
+        except ValueError:
+            ErrorReporter.error(
+                f"unknown assembly syntax: {syntaxStr}\n"
+                f"Valid syntaxes are: {', '.join(Syntax)}"
+            )
+    else:
+        syntax = Syntax.ATT
 
     errorReporter = ErrorReporter(source)
 

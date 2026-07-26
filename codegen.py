@@ -1,3 +1,5 @@
+from enum import StrEnum
+
 from error_reporter import ErrorReporter
 from functions import Function
 from nodes import Node, NodeKind
@@ -31,19 +33,23 @@ def assignLVarOffsets(function: Function) -> None:
     function.stackSize = alignTo(offset, 16)
 
 
+class Syntax(StrEnum):
+    """Assembly syntax flavors the code generator can emit."""
+
+    ATT = "att"
+    INTEL = "intel"
+
+
 class CodeGenerator:
     """Generates x86-64 assembly code from an abstract syntax tree (AST)."""
 
-    def __init__(self, errorReporter: ErrorReporter, syntax: str = "att"):
+    def __init__(self, errorReporter: ErrorReporter, syntax: Syntax = Syntax.ATT):
         """Initializes the code generator.
 
         Args:
             errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
-            syntax (str): Assembly syntax to emit, either "att" or "intel".
+            syntax (Syntax): Assembly syntax to emit, either `Syntax.ATT` (default) or `Syntax.INTEL`.
         """
-        if syntax not in ("att", "intel"):
-            ErrorReporter.error(f"unknown assembly syntax: {syntax}")
-
         self.depth = 0
         self.labelCount = 1
         self.code: list[str] = []
@@ -61,7 +67,7 @@ class CodeGenerator:
         Returns:
             str: The formatted memory operand for the current syntax.
         """
-        if self.syntax == "att":
+        if self.syntax == Syntax.ATT:
             reg = self.reg(base)
             return f"{disp}({reg})" if disp else f"({reg})"
         else:
@@ -81,7 +87,7 @@ class CodeGenerator:
         Returns:
             str: The formatted register operand.
         """
-        return f"%{name}" if self.syntax == "att" else name
+        return f"%{name}" if self.syntax == Syntax.ATT else name
 
     def imm(self, value: int) -> str:
         """Formats an immediate operand for the current syntax.
@@ -92,7 +98,7 @@ class CodeGenerator:
         Returns:
             str: The formatted immediate operand.
         """
-        return f"${value}" if self.syntax == "att" else str(value)
+        return f"${value}" if self.syntax == Syntax.ATT else str(value)
 
     def emit1(self, mnemonic: str, operand: str) -> None:
         """Emits a one-operand instruction.
@@ -111,7 +117,7 @@ class CodeGenerator:
             src (str): The already-formatted source operand (AT&T order).
             dst (str): The already-formatted destination operand (AT&T order).
         """
-        if self.syntax == "att":
+        if self.syntax == Syntax.ATT:
             self.code.append(f"\t{mnemonic} {src}, {dst}")
         else:
             self.code.append(f"\t{mnemonic} {dst}, {src}")
@@ -272,7 +278,7 @@ class CodeGenerator:
 
                 self.emit1(setInstruction, self.reg("al"))
 
-                extendInstruction = "movzx" if self.syntax == "intel" else "movzb"
+                extendInstruction = "movzx" if self.syntax == Syntax.INTEL else "movzb"
                 self.emit2(extendInstruction, self.reg("al"), self.reg("rax"))
                 return
 
@@ -355,7 +361,7 @@ class CodeGenerator:
         """
         assignLVarOffsets(program)
 
-        if self.syntax == "intel":
+        if self.syntax == Syntax.INTEL:
             self.code.append("\t.intel_syntax noprefix")
 
         self.code.append("\t.globl main")
