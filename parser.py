@@ -54,11 +54,14 @@ class Parser:
         """Parses a statement.
 
         ## Grammar:
+            ```
             stmt = "return" expr ";"
                 | "if" "(" expr ")" stmt ("else" stmt)?
                 | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+                | "while" "(" expr ")" stmt
                 | "{" compound-stmt
                 | expr-stmt
+            ```
 
         Returns:
             Node: The root node of the parsed statement.
@@ -111,6 +114,18 @@ class Parser:
             node.then = self.stmt()
             return node
 
+        if equal(self.tokens[0], "while"):
+            self.tokens.popleft()
+
+            node = Node(kind=NodeKind.FOR)
+
+            self.skip("(")
+            node.cond = self.expr()
+            self.skip(")")
+
+            node.then = self.stmt()
+            return node
+
         if equal(self.tokens[0], "{"):
             self.tokens.popleft()
             return self.compoundStmt()
@@ -121,7 +136,9 @@ class Parser:
         """Parses a compound statement.
 
         ## Grammar:
+            ```
             compound-stmt = stmt* "}"
+            ```
 
         Returns:
             Node: The root node of the parsed compound statement.
@@ -142,7 +159,9 @@ class Parser:
         """Parses an expression statement.
 
         ## Grammar:
+            ```
             expr-stmt = expr? ";"
+            ```
 
         Returns:
             Node: The root node of the parsed expression statement.
@@ -163,7 +182,9 @@ class Parser:
         """Parses an expression.
 
         ## Grammar:
+            ```
             expr = assign
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -174,7 +195,9 @@ class Parser:
         """Parses an assignment expression.
 
         ## Grammar:
+            ```
             assign = equality ("=" assign)?
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -195,7 +218,9 @@ class Parser:
         """Parses an equality expression.
 
         ## Grammar:
+            ```
             equality = relational ("==" relational | "!=" relational)*
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -227,7 +252,9 @@ class Parser:
         """Parses a relational expression.
 
         ## Grammar:
+            ```
             relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -277,7 +304,9 @@ class Parser:
         """Parses an addition or subtraction expression.
 
         ## Grammar:
+            ```
             add = mul ("+" mul | "-" mul)*
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -309,7 +338,9 @@ class Parser:
         """Parses a multiplication or division expression.
 
         ## Grammar:
+            ```
             mul = unary ("*" unary | "/" unary)*
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -341,8 +372,10 @@ class Parser:
         """Parses a unary expression.
 
         ## Grammar:
+            ```
             unary = ("+" | "-") unary
-                  | primary
+                    | primary
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -364,7 +397,9 @@ class Parser:
         """Parses a primary expression.
 
         ## Grammar:
+            ```
             primary = "(" expr ")" | ident | num
+            ```
 
         Returns:
             Node: The root node of the parsed expression.
@@ -406,7 +441,9 @@ class Parser:
         """Parses the token stream.
 
         ## Grammar:
+            ```
             program = "{" stmt* "}"
+            ```
 
         Returns:
             Function: The parsed function.

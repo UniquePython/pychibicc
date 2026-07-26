@@ -305,7 +305,8 @@ class CodeGenerator:
             case NodeKind.FOR:
                 c = self.count()
 
-                self.genStmt(node.init)
+                if node.init is not None:
+                    self.genStmt(node.init)
 
                 self.emitLabel(f"begin.{c}")
 

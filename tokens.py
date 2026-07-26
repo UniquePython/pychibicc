@@ -84,7 +84,7 @@ def readPunct(source: str) -> int:
     return 0
 
 
-KEYWORDS = {"return", "if", "else", "for"}
+KEYWORDS = {"return", "if", "else", "for", "while"}
 
 
 def isKeyword(tok: Token) -> bool:

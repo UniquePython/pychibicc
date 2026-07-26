@@ -25,7 +25,7 @@ class NodeKind(Enum):
     ASSIGN = auto()  # =
     RETURN = auto()  # "return"
     IF = auto()  # "if"
-    FOR = auto()  # "for"
+    FOR = auto()  # "for" or "while"
     BLOCK = auto()  # { ... }
     EXPR_STMT = auto()  # Expression statement
     VAR = auto()  # Variable
