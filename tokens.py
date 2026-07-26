@@ -84,6 +84,9 @@ def readPunct(source: str) -> int:
     return 0
 
 
+KEYWORDS = {"return", "if", "else", "for"}
+
+
 def isKeyword(tok: Token) -> bool:
     """Returns whether the specified token is a keyword.
 
@@ -93,9 +96,7 @@ def isKeyword(tok: Token) -> bool:
     Returns:
         bool: True if the token is a keyword, otherwise False.
     """
-    keywords = ("return", "if", "else")
-
-    return any(equal(tok, keyword) for keyword in keywords)
+    return tok.loc in KEYWORDS
 
 
 def convertKeywords(tokens: list[Token]) -> None:

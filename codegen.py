@@ -302,6 +302,27 @@ class CodeGenerator:
                 self.emitLabel(f"end.{c}")
                 return
 
+            case NodeKind.FOR:
+                c = self.count()
+
+                self.genStmt(node.init)
+
+                self.emitLabel(f"begin.{c}")
+
+                if node.cond is not None:
+                    self.genExpr(node.cond)
+                    self.emit2("cmp", self.imm(0), self.reg("rax"))
+                    self.emit1("je", self.label(f"end.{c}"))
+
+                self.genStmt(node.then)
+
+                if node.inc is not None:
+                    self.genExpr(node.inc)
+
+                self.emit1("jmp", self.label(f"begin.{c}"))
+                self.emitLabel(f"end.{c}")
+                return
+
             case NodeKind.BLOCK:
                 for stmt in node.body:
                     self.genStmt(stmt)
