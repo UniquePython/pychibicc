@@ -1,4 +1,4 @@
-from error import error
+from error import error, errorTok
 from functions import Function
 from nodes import Node, NodeKind
 
@@ -34,10 +34,11 @@ def assignLVarOffsets(function: Function) -> None:
 class CodeGenerator:
     """Generates x86-64 assembly code from an abstract syntax tree (AST)."""
 
-    def __init__(self, syntax: str = "att"):
+    def __init__(self, source: str, syntax: str = "att"):
         """Initializes the code generator.
 
         Args:
+            source (str): The source code from which token stream was generated.
             syntax (str): Assembly syntax to emit, either "att" or "intel".
         """
         if syntax not in ("att", "intel"):
@@ -46,6 +47,8 @@ class CodeGenerator:
         self.depth = 0
         self.labelCount = 1
         self.code: list[str] = []
+
+        self.source = source
         self.syntax = syntax
 
     def mem(self, base: str, disp: int = 0) -> str:
@@ -200,7 +203,7 @@ class CodeGenerator:
                 self.commentLast(node.var.name)
                 return
 
-        error("not an lvalue")
+        errorTok(self.source, node.tok, "not an lvalue")
 
     def genExpr(self, node: Node) -> None:
         """Generates assembly code for an expression.
@@ -273,7 +276,7 @@ class CodeGenerator:
                 self.emit2(extendInstruction, self.reg("al"), self.reg("rax"))
                 return
 
-        error("invalid expression")
+        errorTok(self.source, node.tok, "invalid expression")
 
     def genStmt(self, node: Node) -> None:
         """Generates assembly code for a statement.
@@ -339,7 +342,7 @@ class CodeGenerator:
                 self.genExpr(node.lhs)
                 return
 
-        error("invalid statement")
+        errorTok(self.source, node.tok, "invalid statement")
 
     def codegen(self, program: Function) -> str:
         """Generates assembly code for the specified program.

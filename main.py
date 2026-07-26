@@ -22,7 +22,7 @@ def main() -> None:
     parser = Parser(source, tokens)
     node = parser.parse()
 
-    codeGenerator = CodeGenerator(syntax)
+    codeGenerator = CodeGenerator(source, syntax)
     code = codeGenerator.codegen(node)
 
     print(code)

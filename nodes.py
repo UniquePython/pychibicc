@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from objects import Obj
+from tokens import Token
 
 
 class NodeKind(Enum):
@@ -37,6 +38,8 @@ class Node:
     """Represents a node in the abstract syntax tree (AST)."""
 
     kind: NodeKind  # Node kind
+    tok: Token  # Representative token
+
     lhs: Node | None = None  # Left-hand side
     rhs: Node | None = None  # Right-hand side
 

@@ -67,10 +67,11 @@ class Parser:
             Node: The root node of the parsed statement.
         """
         if equal(self.tokens[0], "return"):
-            self.tokens.popleft()
+            tok = self.tokens.popleft()
 
             node = Node(
                 kind=NodeKind.RETURN,
+                tok=tok,
                 lhs=self.expr(),
             )
 
@@ -78,9 +79,9 @@ class Parser:
             return node
 
         if equal(self.tokens[0], "if"):
-            self.tokens.popleft()
+            tok = self.tokens.popleft()
 
-            node = Node(kind=NodeKind.IF)
+            node = Node(kind=NodeKind.IF, tok=tok)
 
             self.skip("(")
             node.cond = self.expr()
@@ -95,9 +96,9 @@ class Parser:
             return node
 
         if equal(self.tokens[0], "for"):
-            self.tokens.popleft()
+            tok = self.tokens.popleft()
 
-            node = Node(kind=NodeKind.FOR)
+            node = Node(kind=NodeKind.FOR, tok=tok)
 
             self.skip("(")
 
@@ -115,9 +116,9 @@ class Parser:
             return node
 
         if equal(self.tokens[0], "while"):
-            self.tokens.popleft()
+            tok = self.tokens.popleft()
 
-            node = Node(kind=NodeKind.FOR)
+            node = Node(kind=NodeKind.FOR, tok=tok)
 
             self.skip("(")
             node.cond = self.expr()
@@ -127,18 +128,21 @@ class Parser:
             return node
 
         if equal(self.tokens[0], "{"):
-            self.tokens.popleft()
-            return self.compoundStmt()
+            tok = self.tokens.popleft()
+            return self.compoundStmt(tok)
 
         return self.exprStmt()
 
-    def compoundStmt(self) -> Node:
+    def compoundStmt(self, tok: Token) -> Node:
         """Parses a compound statement.
 
         ## Grammar:
             ```
             compound-stmt = stmt* "}"
             ```
+
+        Args:
+            tok (Token): The "{" token that opened this block.
 
         Returns:
             Node: The root node of the parsed compound statement.
@@ -152,6 +156,7 @@ class Parser:
 
         return Node(
             kind=NodeKind.BLOCK,
+            tok=tok,
             body=body,
         )
 
@@ -167,11 +172,14 @@ class Parser:
             Node: The root node of the parsed expression statement.
         """
         if equal(self.tokens[0], ";"):
-            self.tokens.popleft()
-            return Node(kind=NodeKind.BLOCK)
+            tok = self.tokens.popleft()
+            return Node(kind=NodeKind.BLOCK, tok=tok)
+
+        tok = self.tokens[0]
 
         node = Node(
             kind=NodeKind.EXPR_STMT,
+            tok=tok,
             lhs=self.expr(),
         )
 
@@ -205,9 +213,10 @@ class Parser:
         node = self.equality()
 
         if equal(self.tokens[0], "="):
-            self.tokens.popleft()
+            tok = self.tokens.popleft()
             node = Node(
                 kind=NodeKind.ASSIGN,
+                tok=tok,
                 lhs=node,
                 rhs=self.assign(),
             )
@@ -228,10 +237,13 @@ class Parser:
         node = self.relational()
 
         while True:
+            start = self.tokens[0]
+
             if equal(self.tokens[0], "=="):
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.EQ,
+                    tok=start,
                     lhs=node,
                     rhs=self.relational(),
                 )
@@ -241,6 +253,7 @@ class Parser:
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.NE,
+                    tok=start,
                     lhs=node,
                     rhs=self.relational(),
                 )
@@ -262,10 +275,13 @@ class Parser:
         node = self.add()
 
         while True:
+            start = self.tokens[0]
+
             if equal(self.tokens[0], "<"):
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LT,
+                    tok=start,
                     lhs=node,
                     rhs=self.add(),
                 )
@@ -275,6 +291,7 @@ class Parser:
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LE,
+                    tok=start,
                     lhs=node,
                     rhs=self.add(),
                 )
@@ -284,6 +301,7 @@ class Parser:
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LT,
+                    tok=start,
                     lhs=self.add(),
                     rhs=node,
                 )
@@ -293,6 +311,7 @@ class Parser:
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.LE,
+                    tok=start,
                     lhs=self.add(),
                     rhs=node,
                 )
@@ -314,10 +333,13 @@ class Parser:
         node = self.mul()
 
         while True:
+            start = self.tokens[0]
+
             if equal(self.tokens[0], "+"):
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.ADD,
+                    tok=start,
                     lhs=node,
                     rhs=self.mul(),
                 )
@@ -327,6 +349,7 @@ class Parser:
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.SUB,
+                    tok=start,
                     lhs=node,
                     rhs=self.mul(),
                 )
@@ -348,10 +371,13 @@ class Parser:
         node = self.unary()
 
         while True:
+            start = self.tokens[0]
+
             if equal(self.tokens[0], "*"):
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.MUL,
+                    tok=start,
                     lhs=node,
                     rhs=self.unary(),
                 )
@@ -361,6 +387,7 @@ class Parser:
                 self.tokens.popleft()
                 node = Node(
                     kind=NodeKind.DIV,
+                    tok=start,
                     lhs=node,
                     rhs=self.unary(),
                 )
@@ -385,9 +412,10 @@ class Parser:
             return self.unary()
 
         if equal(self.tokens[0], "-"):
-            self.tokens.popleft()
+            tok = self.tokens.popleft()
             return Node(
                 kind=NodeKind.NEG,
+                tok=tok,
                 lhs=self.unary(),
             )
 
@@ -425,6 +453,7 @@ class Parser:
             self.tokens.popleft()
             return Node(
                 kind=NodeKind.VAR,
+                tok=tok,
                 var=var,
             )
 
@@ -432,6 +461,7 @@ class Parser:
             self.tokens.popleft()
             return Node(
                 kind=NodeKind.NUM,
+                tok=tok,
                 val=tok.val,
             )
 
@@ -448,9 +478,10 @@ class Parser:
         Returns:
             Function: The parsed function.
         """
+        tok = self.tokens[0]
         self.skip("{")
 
         return Function(
-            body=self.compoundStmt(),
+            body=self.compoundStmt(tok),
             locals=self.locals,
         )
