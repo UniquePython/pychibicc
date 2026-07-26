@@ -1,4 +1,4 @@
-from error import errorAt, errorTok
+from error_reporter import ErrorReporter
 from tokens import (
     Token,
     TokenKind,
@@ -12,13 +12,14 @@ from tokens import (
 class Tokenizer:
     """Tokenizes source code into a sequence of lexical tokens."""
 
-    def __init__(self, source: str):
+    def __init__(self, errorReporter: ErrorReporter):
         """Initializes the tokenizer.
 
         Args:
-            source (str): The source code to tokenize.
+            errorReporter (ErrorReporter): The error reporter initialized with the source code to tokenize.
         """
-        self.source = source
+        self.errorReporter = errorReporter
+        self.source = self.errorReporter.source
 
     def getNumber(self, tok: Token) -> int:
         """Returns the numeric value of a number token.
@@ -33,7 +34,7 @@ class Tokenizer:
             SystemExit: If the token is not a number token.
         """
         if tok.kind != TokenKind.NUM:
-            errorTok(self.source, tok, "expected a number")
+            self.errorReporter.errorTok(tok, "expected a number")
 
         return tok.val
 
@@ -104,7 +105,7 @@ class Tokenizer:
                 idx += punctLength
                 continue
 
-            errorAt(self.source, idx, "invalid token")
+            self.errorReporter.errorAt(idx, "invalid token")
 
         tokens.append(Token(TokenKind.EOF, pos=len(self.source)))
         convertKeywords(tokens)

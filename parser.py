@@ -1,6 +1,6 @@
 from collections import deque
 
-from error import errorTok
+from error_reporter import ErrorReporter
 from functions import Function
 from nodes import Node, NodeKind
 from objects import Obj
@@ -10,14 +10,14 @@ from tokens import Token, TokenKind, equal
 class Parser:
     """Parses a token stream into an abstract syntax tree (AST)."""
 
-    def __init__(self, source: str, tokens: list[Token]):
+    def __init__(self, errorReporter: ErrorReporter, tokens: list[Token]):
         """Initializes the parser.
 
         Args:
-            source (str): The source code that produced the token stream.
+            errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
             tokens (list[Token]): The token stream to parse.
         """
-        self.source: str = source
+        self.errorReporter = errorReporter
         self.tokens: deque[Token] = deque(tokens)
         self.locals: list[Obj] = []
 
@@ -33,7 +33,7 @@ class Parser:
         tok = self.tokens.popleft()
 
         if not equal(tok, s):
-            errorTok(self.source, tok, f"expected '{s}'")
+            self.errorReporter.errorTok(tok, f"expected '{s}'")
 
     def findVar(self, tok: Token) -> Obj | None:
         """Finds a local variable by name.
@@ -465,7 +465,7 @@ class Parser:
                 val=tok.val,
             )
 
-        errorTok(self.source, tok, "expected an expression")
+        self.errorReporter.errorTok(tok, "expected an expression")
 
     def parse(self) -> Function:
         """Parses the token stream.

@@ -1,14 +1,14 @@
 import sys
 
 from codegen import CodeGenerator
-from error import error
+from error_reporter import ErrorReporter
 from parser import Parser
 from tokenizer import Tokenizer
 
 
 def main() -> None:
     if len(sys.argv) != 3:
-        error(
+        ErrorReporter.error(
             f"{sys.argv[0]}: invalid number of arguments\n"
             "Usage: main.py <source> <att|intel>"
         )
@@ -16,13 +16,15 @@ def main() -> None:
     source = sys.argv[1]
     syntax = sys.argv[2]
 
-    tokenizer = Tokenizer(source)
+    errorReporter = ErrorReporter(source)
+
+    tokenizer = Tokenizer(errorReporter)
     tokens = tokenizer.tokenize()
 
-    parser = Parser(source, tokens)
+    parser = Parser(errorReporter, tokens)
     node = parser.parse()
 
-    codeGenerator = CodeGenerator(source, syntax)
+    codeGenerator = CodeGenerator(errorReporter, syntax)
     code = codeGenerator.codegen(node)
 
     print(code)
