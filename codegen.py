@@ -26,7 +26,7 @@ def assignLVarOffsets(function: Function) -> None:
     """
     offset = 0
 
-    for var in function.locals:
+    for var in reversed(function.locals):
         offset += 8
         var.offset = -offset
 
@@ -209,6 +209,10 @@ class CodeGenerator:
                 self.commentLast(node.var.name)
                 return
 
+            case NodeKind.DEREF:
+                self.genExpr(node.lhs)
+                return
+
         self.errorReporter.errorTok(node.tok, "not an lvalue")
 
     def genExpr(self, node: Node) -> None:
@@ -233,6 +237,15 @@ class CodeGenerator:
             case NodeKind.VAR:
                 self.genAddr(node)
                 self.emit2("mov", self.mem("rax"), self.reg("rax"))
+                return
+
+            case NodeKind.DEREF:
+                self.genExpr(node.lhs)
+                self.emit2("mov", self.mem("rax"), self.reg("rax"))
+                return
+
+            case NodeKind.ADDR:
+                self.genAddr(node.lhs)
                 return
 
             case NodeKind.ASSIGN:

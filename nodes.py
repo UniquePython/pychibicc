@@ -24,6 +24,8 @@ class NodeKind(Enum):
     LT = auto()  # <
     LE = auto()  # <=
     ASSIGN = auto()  # =
+    ADDR = auto()  # unary &
+    DEREF = auto()  # unary *
     RETURN = auto()  # "return"
     IF = auto()  # "if"
     FOR = auto()  # "for" or "while"

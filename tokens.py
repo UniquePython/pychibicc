@@ -78,7 +78,7 @@ def readPunct(source: str) -> int:
     if source.startswith(("==", "!=", "<=", ">=")):
         return 2
 
-    if source and source[0] in "+-*/()<>!={}[],;":
+    if source and source[0] in "+-*&/()<>!={}[],;":
         return 1
 
     return 0

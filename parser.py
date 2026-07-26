@@ -400,7 +400,7 @@ class Parser:
 
         ## Grammar:
             ```
-            unary = ("+" | "-") unary
+            unary = ("+" | "-" | "*" | "&") unary
                     | primary
             ```
 
@@ -415,6 +415,22 @@ class Parser:
             tok = self.tokens.popleft()
             return Node(
                 kind=NodeKind.NEG,
+                tok=tok,
+                lhs=self.unary(),
+            )
+
+        if equal(self.tokens[0], "&"):
+            tok = self.tokens.popleft()
+            return Node(
+                kind=NodeKind.ADDR,
+                tok=tok,
+                lhs=self.unary(),
+            )
+
+        if equal(self.tokens[0], "*"):
+            tok = self.tokens.popleft()
+            return Node(
+                kind=NodeKind.DEREF,
                 tok=tok,
                 lhs=self.unary(),
             )
