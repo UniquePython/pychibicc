@@ -1,8 +1,9 @@
 from collections import deque
 
+from dtypes import dtypeInt, isInteger
 from error_reporter import ErrorReporter
 from functions import Function
-from nodes import Node, NodeKind
+from nodes import Node, NodeKind, addType
 from objects import Obj
 from tokens import Token, TokenKind, equal
 
@@ -150,7 +151,9 @@ class Parser:
         body: list[Node] = []
 
         while not equal(self.tokens[0], "}"):
-            body.append(self.stmt())
+            stmt = self.stmt()
+            addType(stmt)
+            body.append(stmt)
 
         self.skip("}")
 
@@ -319,6 +322,105 @@ class Parser:
 
             return node
 
+    def newNum(self, val: int, tok: Token) -> Node:
+        return Node(
+            kind=NodeKind.NUM,
+            tok=tok,
+            dtype=dtypeInt,
+            val=val,
+        )
+
+    def newAdd(self, lhs: Node, rhs: Node, tok: Token) -> Node:
+        """Creates an addition node, handling pointer arithmetic."""
+
+        addType(lhs)
+        addType(rhs)
+
+        # num + num
+        if isInteger(lhs.dtype) and isInteger(rhs.dtype):
+            return Node(
+                kind=NodeKind.ADD,
+                tok=tok,
+                lhs=lhs,
+                rhs=rhs,
+            )
+
+        if lhs.dtype.base is not None and rhs.dtype.base is not None:
+            self.errorReporter.errorTok(tok, "invalid operands")
+
+        # Canonicalize num + ptr to ptr + num.
+        if lhs.dtype.base is None and rhs.dtype.base is not None:
+            lhs, rhs = rhs, lhs
+
+        # ptr + num
+        rhs = Node(
+            kind=NodeKind.MUL,
+            tok=tok,
+            lhs=rhs,
+            rhs=self.newNum(8, tok),
+        )
+        addType(rhs)
+
+        return Node(
+            kind=NodeKind.ADD,
+            tok=tok,
+            lhs=lhs,
+            rhs=rhs,
+        )
+
+    def newSub(self, lhs: Node, rhs: Node, tok: Token) -> Node:
+        """Creates a subtraction node, handling pointer arithmetic."""
+
+        addType(lhs)
+        addType(rhs)
+
+        # num - num
+        if isInteger(lhs.dtype) and isInteger(rhs.dtype):
+            return Node(
+                kind=NodeKind.SUB,
+                tok=tok,
+                lhs=lhs,
+                rhs=rhs,
+            )
+
+        # ptr - num
+        if lhs.dtype.base is not None and isInteger(rhs.dtype):
+            rhs = Node(
+                kind=NodeKind.MUL,
+                tok=tok,
+                lhs=rhs,
+                rhs=self.newNum(8, tok),
+            )
+            addType(rhs)
+
+            node = Node(
+                kind=NodeKind.SUB,
+                tok=tok,
+                lhs=lhs,
+                rhs=rhs,
+            )
+            node.dtype = lhs.dtype
+            return node
+
+        # ptr - ptr
+        if lhs.dtype.base is not None and rhs.dtype.base is not None:
+            node = Node(
+                kind=NodeKind.SUB,
+                tok=tok,
+                lhs=lhs,
+                rhs=rhs,
+            )
+            node.dtype = dtypeInt
+
+            return Node(
+                kind=NodeKind.DIV,
+                tok=tok,
+                lhs=node,
+                rhs=self.newNum(8, tok),
+            )
+
+        self.errorReporter.errorTok(tok, "invalid operands")
+
     def add(self) -> Node:
         """Parses an addition or subtraction expression.
 
@@ -337,22 +439,12 @@ class Parser:
 
             if equal(self.tokens[0], "+"):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.ADD,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.mul(),
-                )
+                node = self.newAdd(node, self.mul(), start)
                 continue
 
             if equal(self.tokens[0], "-"):
                 self.tokens.popleft()
-                node = Node(
-                    kind=NodeKind.SUB,
-                    tok=start,
-                    lhs=node,
-                    rhs=self.mul(),
-                )
+                node = self.newSub(node, self.mul(), start)
                 continue
 
             return node

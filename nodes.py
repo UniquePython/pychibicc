@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
+from dtypes import DType, DTypeKind, dtypeInt, pointerTo
 from objects import Obj
 from tokens import Token
 
@@ -41,6 +42,7 @@ class Node:
 
     kind: NodeKind  # Node kind
     tok: Token  # Representative token
+    dtype: DType | None = None  # Data type
 
     lhs: Node | None = None  # Left-hand side
     rhs: Node | None = None  # Right-hand side
@@ -56,3 +58,54 @@ class Node:
 
     var: Obj | None = None  # Used if kind == NodeKind.VAR
     val: int = 0  # Used if kind == NodeKind.NUM
+
+
+def addType(node: Node | None) -> None:
+    """Annotates the AST with type information.
+
+    Args:
+        node (Node | None): The AST node to annotate.
+    """
+    if node is None or node.dtype is not None:
+        return
+
+    addType(node.lhs)
+    addType(node.rhs)
+    addType(node.cond)
+    addType(node.then)
+    addType(node.els)
+    addType(node.init)
+    addType(node.inc)
+
+    for stmt in node.body:
+        addType(stmt)
+
+    match node.kind:
+        case (
+            NodeKind.ADD
+            | NodeKind.SUB
+            | NodeKind.MUL
+            | NodeKind.DIV
+            | NodeKind.NEG
+            | NodeKind.ASSIGN
+        ):
+            node.dtype = node.lhs.dtype
+
+        case (
+            NodeKind.EQ
+            | NodeKind.NE
+            | NodeKind.LT
+            | NodeKind.LE
+            | NodeKind.VAR
+            | NodeKind.NUM
+        ):
+            node.dtype = dtypeInt
+
+        case NodeKind.ADDR:
+            node.dtype = pointerTo(node.lhs.dtype)
+
+        case NodeKind.DEREF:
+            if node.lhs.dtype.kind == DTypeKind.PTR:
+                node.dtype = node.lhs.dtype.base
+            else:
+                node.dtype = dtypeInt
