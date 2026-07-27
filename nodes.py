@@ -119,6 +119,9 @@ def formatNode(node: Node | None) -> str:
             args = ", ".join(formatNode(arg) for arg in node.args)
             return f"{node.funcName}({args})"
 
+        case NodeKind.EXPR_STMT:
+            return formatNode(node.lhs)
+
         case _:
             return f"<{node.kind.name}>"
 

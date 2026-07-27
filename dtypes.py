@@ -11,6 +11,7 @@ class DtypeKind(Enum):
 
     INT = auto()
     PTR = auto()
+    FUNC = auto()
 
 
 @dataclass
@@ -24,6 +25,9 @@ class Dtype:
 
     # Declaration
     name: Token | None = None  # Declarator token
+
+    # Function type
+    returnDtype: Dtype | None = None
 
 
 dtypeInt = Dtype(DtypeKind.INT)
@@ -53,4 +57,19 @@ def pointerTo(base: Dtype) -> Dtype:
     return Dtype(
         kind=DtypeKind.PTR,
         base=base,
+    )
+
+
+def funcType(returnDtype: Dtype) -> Dtype:
+    """Creates a function type.
+
+    Args:
+        returnDtype (Dtype): The function's return type.
+
+    Returns:
+        Dtype: The newly created function type.
+    """
+    return Dtype(
+        kind=DtypeKind.FUNC,
+        returnDtype=returnDtype,
     )

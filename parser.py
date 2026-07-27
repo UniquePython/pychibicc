@@ -1,6 +1,6 @@
 from collections import deque
 
-from dtypes import Dtype, dtypeInt, pointerTo
+from dtypes import Dtype, dtypeInt, funcType, pointerTo
 from error_reporter import ErrorReporter
 from functions import Function
 from node_constructors import (
@@ -110,12 +110,33 @@ class Parser:
         self.expect("int")
         return dtypeInt
 
+    def typeSuffix(self, dtype: Dtype) -> Dtype:
+        """Parses a type suffix.
+
+        ## Grammar:
+            ```
+            type-suffix = ("(" ")")?
+            ```
+
+        Args:
+            dtype (Dtype): The type constructed so far.
+
+        Returns:
+            Dtype: The resulting type.
+        """
+        if equal(self.tokens[0], "("):
+            self.expect("(")
+            self.expect(")")
+            return funcType(dtype)
+
+        return dtype
+
     def declarator(self, dtype: Dtype) -> Dtype:
         """Parses a declarator.
 
         ## Grammar:
             ```
-            declarator = "*"* ident
+            declarator = "*"* ident type-suffix
             ```
 
         Args:
@@ -132,8 +153,10 @@ class Parser:
         if tok.kind != TokenKind.IDENT:
             self.errorReporter.errorTok(tok, "expected a variable name")
 
-        dtype.name = tok
         self.tokens.popleft()
+
+        dtype = self.typeSuffix(dtype)
+        dtype.name = tok
 
         return dtype
 
@@ -574,21 +597,46 @@ class Parser:
 
         self.errorReporter.errorTok(tok, "expected an expression")
 
-    def parse(self) -> Function:
-        """Parses the token stream.
+    def function(self) -> Function:
+        """Parses a function definition.
 
         ## Grammar:
             ```
-            program = "{" stmt* "}"
+            function-definition = declspec declarator compound-stmt
             ```
 
         Returns:
             Function: The parsed function.
         """
+        dtype = self.declspec()
+        dtype = self.declarator(dtype)
+
+        # Each function has its own local symbol table.
+        self.locals.clear()
+
+        fn = Function(name=getIdent(dtype.name, self.errorReporter))
+
         tok = self.tokens[0]
         self.expect("{")
+        fn.body = self.compoundStmt(tok)
+        fn.locals = self.locals.copy()
 
-        return Function(
-            body=self.compoundStmt(tok),
-            locals=self.locals,
-        )
+        return fn
+
+    def parse(self) -> list[Function]:
+        """Parses the token stream.
+
+        ## Grammar:
+            ```
+            program = function-definition*
+            ```
+
+        Returns:
+            list[Function]: The parsed functions.
+        """
+        functions: list[Function] = []
+
+        while self.tokens[0].kind != TokenKind.EOF:
+            functions.append(self.function())
+
+        return functions

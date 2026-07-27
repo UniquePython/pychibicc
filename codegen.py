@@ -17,19 +17,20 @@ def alignTo(n: int, align: int) -> int:
     return (n + align - 1) // align * align
 
 
-def assignLVarOffsets(function: Function) -> None:
+def assignLVarOffsets(functions: list[Function]) -> None:
     """Assigns stack offsets to local variables.
 
     Args:
-        function (Function): The function whose local variables are to be assigned offsets.
+        functions (list[Function]): The parsed functions.
     """
-    offset = 0
+    for function in functions:
+        offset = 0
 
-    for var in reversed(function.locals):
-        offset += 8
-        var.offset = -offset
+        for var in reversed(function.locals):
+            offset += 8
+            var.offset = -offset
 
-    function.stackSize = alignTo(offset, 16)
+        function.stackSize = alignTo(offset, 16)
 
 
 ARG_REGS = ("rdi", "rsi", "rdx", "rcx", "r8", "r9")
@@ -47,6 +48,7 @@ class CodeGenerator:
         """
         self.depth = 0
         self.labelCount = 1
+        self.currentFunction: Function | None = None
 
         self.w = asmWriter
         self.errorReporter = errorReporter
@@ -134,12 +136,17 @@ class CodeGenerator:
                 return
 
             case NodeKind.ASSIGN:
+                self.w.comment(f"{formatNode(node)}")
+
                 self.genAddr(node.lhs)
                 self.push()
-                self.w.commentLast("save assignment target address")
+                self.w.commentLast(f"save address of {formatNode(node.lhs)}")
+
                 self.genExpr(node.rhs)
+
                 self.pop("rdi")
                 self.w.emit2("mov", self.w.reg("rax"), self.w.mem("rdi"))
+                self.w.commentLast(f"store into {formatNode(node.lhs)}")
                 return
 
             case NodeKind.FUNCALL:
@@ -170,24 +177,29 @@ class CodeGenerator:
         match node.kind:
             case NodeKind.ADD:
                 self.w.emit2("add", self.w.reg("rdi"), self.w.reg("rax"))
+                self.w.commentLast(formatNode(node))
                 return
 
             case NodeKind.SUB:
                 self.w.emit2("sub", self.w.reg("rdi"), self.w.reg("rax"))
+                self.w.commentLast(formatNode(node))
                 return
 
             case NodeKind.MUL:
                 self.w.emit2("imul", self.w.reg("rdi"), self.w.reg("rax"))
+                self.w.commentLast(formatNode(node))
                 return
 
             case NodeKind.DIV:
                 self.w.emit0("cqo")
+                self.w.commentLast("sign-extend dividend")
                 self.w.emit1("idiv", self.w.reg("rdi"))
+                self.w.commentLast(formatNode(node))
                 return
 
             case NodeKind.EQ | NodeKind.NE | NodeKind.LT | NodeKind.LE:
+                self.w.comment(f"compare {formatNode(node)}")
                 self.w.emit2("cmp", self.w.reg("rdi"), self.w.reg("rax"))
-                self.w.commentLast(formatNode(node))
 
                 setInstruction = {
                     NodeKind.EQ: "sete",
@@ -219,13 +231,18 @@ class CodeGenerator:
             case NodeKind.IF:
                 c = self.count()
 
+                self.w.comment(f"if ({formatNode(node.cond)})")
+
                 self.genExpr(node.cond)
                 self.w.emit2("cmp", self.w.imm(0), self.w.reg("rax"))
+                self.w.commentLast(f"test {formatNode(node.cond)}")
                 self.w.emit1("je", self.w.label(f"if.else.{c}"))
 
+                self.w.comment("then")
                 self.genStmt(node.then)
                 self.w.emit1("jmp", self.w.label(f"if.end.{c}"))
 
+                self.w.comment("else")
                 self.w.emitLabel(f"if.else.{c}")
                 if node.els is not None:
                     self.genStmt(node.els)
@@ -234,6 +251,15 @@ class CodeGenerator:
                 return
 
             case NodeKind.FOR:
+                if node.init is None and node.inc is None:
+                    self.w.comment(f"while ({formatNode(node.cond)})")
+                else:
+                    self.w.comment(
+                        f"for ({formatNode(node.init)}; "
+                        f"{formatNode(node.cond)}; "
+                        f"{formatNode(node.inc)})"
+                    )
+
                 c = self.count()
 
                 if node.init is not None:
@@ -243,12 +269,15 @@ class CodeGenerator:
 
                 if node.cond is not None:
                     self.genExpr(node.cond)
+                    self.w.commentLast(f"evaluate {formatNode(node.cond)}")
+                    self.w.comment(f"test {formatNode(node.cond)}")
                     self.w.emit2("cmp", self.w.imm(0), self.w.reg("rax"))
                     self.w.emit1("je", self.w.label(f"for.end.{c}"))
 
                 self.genStmt(node.then)
 
                 if node.inc is not None:
+                    self.w.comment(f"increment: {formatNode(node.inc)}")
                     self.genExpr(node.inc)
 
                 self.w.emit1("jmp", self.w.label(f"for.begin.{c}"))
@@ -262,7 +291,7 @@ class CodeGenerator:
 
             case NodeKind.RETURN:
                 self.genExpr(node.lhs)
-                self.w.emit1("jmp", self.w.label("return"))
+                self.w.emit1("jmp", self.w.label(f"return.{self.currentFunction.name}"))
                 return
 
             case NodeKind.EXPR_STMT:
@@ -272,11 +301,11 @@ class CodeGenerator:
 
         self.errorReporter.errorTok(node.tok, "internal error: invalid statement")
 
-    def codegen(self, program: Function) -> str:
+    def codegen(self, program: list[Function]) -> str:
         """Generates assembly code for the specified program.
 
         Args:
-            program (Function): The program to generate code for.
+            program (list[Function]): The program to generate code for.
 
         Returns:
             str: The generated assembly code.
@@ -286,37 +315,53 @@ class CodeGenerator:
         if self.w.syntax == Syntax.INTEL:
             self.w.directive(".intel_syntax noprefix")
 
-        self.w.directive(".globl main")
-        self.w.raw("main:")
+        for function in program:
+            self.currentFunction = function
 
-        # Prologue.
-        self.w.empty()
-        self.w.comment("--- Prologue ---")
-        self.w.emit1("push", self.w.reg("rbp"))
-        self.w.commentLast("save caller's frame pointer")
-        self.w.emit2("mov", self.w.reg("rsp"), self.w.reg("rbp"))
-        self.w.commentLast("establish new frame pointer")
-        self.w.emit2("sub", self.w.imm(program.stackSize), self.w.reg("rsp"))
-        self.w.commentLast(f"reserve {program.stackSize} bytes for locals")
-
-        if program.locals:
             self.w.empty()
-            self.w.comment("--- Stack Frame ---")
-            for var in program.locals:
-                self.w.comment(f"\t{self.w.mem('rbp', var.offset)}: {var.name}")
+            self.w.comment("==========================================================")
+            self.w.comment(f"Function: {function.name}")
+            self.w.comment(f"Stack size: {function.stackSize}")
+            self.w.comment("==========================================================")
+            self.w.empty()
 
-        self.w.empty()
-        self.w.comment("--- Body ---")
-        self.genStmt(program.body)
-        assert self.depth == 0, (
-            f"unbalanced push/pop: depth={self.depth} at end of codegen"
-        )
+            self.w.directive(f".globl {function.name}")
+            self.w.raw(f"{function.name}:")
 
-        self.w.emitLabel("return")
-        self.w.emit2("mov", self.w.reg("rbp"), self.w.reg("rsp"))
-        self.w.commentLast("deallocate stack frame")
-        self.w.emit1("pop", self.w.reg("rbp"))
-        self.w.commentLast("restore caller's frame pointer")
-        self.w.emit0("ret")
+            # Prologue.
+            self.w.empty()
+            self.w.comment("--- Prologue ---")
+            self.w.emit1("push", self.w.reg("rbp"))
+            self.w.commentLast("save caller's frame pointer")
+            self.w.emit2("mov", self.w.reg("rsp"), self.w.reg("rbp"))
+            self.w.commentLast("establish new frame pointer")
+            self.w.emit2("sub", self.w.imm(function.stackSize), self.w.reg("rsp"))
+            self.w.commentLast(f"reserve {function.stackSize} bytes for locals")
+
+            if function.locals:
+                self.w.empty()
+                self.w.comment("--- Stack Frame ---")
+                for var in function.locals:
+                    self.w.comment(f"\t{self.w.mem('rbp', var.offset)}: {var.name}")
+
+            self.w.empty()
+            self.w.comment("--- Body ---")
+            self.genStmt(function.body)
+
+            assert self.depth == 0, (
+                f"unbalanced push/pop: depth={self.depth} at end of codegen"
+            )
+
+            # Epilogue.
+            self.w.empty()
+            self.w.comment("--- Epilogue ---")
+            self.w.emitLabel(f"return.{function.name}")
+            self.w.emit2("mov", self.w.reg("rbp"), self.w.reg("rsp"))
+            self.w.commentLast("deallocate stack frame")
+            self.w.emit1("pop", self.w.reg("rbp"))
+            self.w.commentLast("restore caller's frame pointer")
+            self.w.emit0("ret")
+
+            self.w.empty()
 
         return self.w.getValue()
