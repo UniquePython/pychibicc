@@ -1,6 +1,7 @@
 import sys
 
-from codegen import CodeGenerator, Syntax
+from asm_writer import AsmWriter, Syntax
+from codegen import CodeGenerator
 from error_reporter import ErrorReporter
 from parser import Parser
 from tokenizer import Tokenizer
@@ -36,7 +37,9 @@ def main() -> None:
     parser = Parser(errorReporter, tokens)
     node = parser.parse()
 
-    codeGenerator = CodeGenerator(errorReporter, syntax)
+    asmWriter = AsmWriter(syntax)
+
+    codeGenerator = CodeGenerator(asmWriter, errorReporter)
     code = codeGenerator.codegen(node)
 
     print(code)
