@@ -86,17 +86,18 @@ def newVarNode(var: Obj, tok: Token) -> Node:
     return Node(kind=NodeKind.VAR, tok=tok, var=var)
 
 
-def newFuncall(funcName: str, tok: Token) -> Node:
+def newFuncall(funcName: str, args: list[Node], tok: Token) -> Node:
     """Creates a function call node.
 
     Args:
         funcName (str): The name of the function.
+        args (list[Node]): The arguments to the function.
         tok (Token): The representative token.
 
     Returns:
         Node: The newly created node.
     """
-    return Node(kind=NodeKind.FUNCALL, tok=tok, funcName=funcName)
+    return Node(kind=NodeKind.FUNCALL, tok=tok, funcName=funcName, args=args)
 
 
 def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> Node:

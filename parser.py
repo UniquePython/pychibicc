@@ -505,6 +505,32 @@ class Parser:
         self.locals.append(var)
         return var
 
+    def funcall(self) -> Node:
+        """Parses a function call.
+
+        ## Grammar:
+            ```
+            funcall = ident "(" (assign ("," assign)*)? ")"
+            ```
+
+        Returns:
+            Node: The parsed function call.
+        """
+        start = self.tokens.popleft()  # identifier
+        self.expect("(")
+
+        args: list[Node] = []
+
+        while not equal(self.tokens[0], ")"):
+            if args:
+                self.expect(",")
+
+            args.append(self.assign())
+
+        self.expect(")")
+
+        return newFuncall(start.loc, args, start)
+
     def primary(self) -> Node:
         """Parses a primary expression.
 
@@ -531,11 +557,7 @@ class Parser:
         if tok.kind == TokenKind.IDENT:
             # Function call
             if len(self.tokens) > 1 and equal(self.tokens[1], "("):
-                self.tokens.popleft()  # identifier
-                self.expect("(")
-                self.expect(")")
-
-                return newFuncall(tok.loc, tok)
+                return self.funcall()
 
             # Variable
             var = self.findVar(tok)

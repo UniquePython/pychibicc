@@ -40,6 +40,9 @@ class Syntax(StrEnum):
     INTEL = "intel"
 
 
+ARG_REGS = ("rdi", "rsi", "rdx", "rcx", "r8", "r9")
+
+
 class CodeGenerator:
     """Generates x86-64 assembly code from an abstract syntax tree (AST)."""
 
@@ -52,6 +55,7 @@ class CodeGenerator:
         """
         self.depth = 0
         self.labelCount = 1
+
         self.code: list[str] = []
 
         self.errorReporter = errorReporter
@@ -257,6 +261,13 @@ class CodeGenerator:
                 return
 
             case NodeKind.FUNCALL:
+                for arg in node.args:
+                    self.genExpr(arg)
+                    self.push()
+
+                for reg in reversed(ARG_REGS[: len(node.args)]):
+                    self.pop(reg)
+
                 self.emit2("mov", self.imm(0), self.reg("rax"))
                 self.emit1("call", node.funcName)
                 return

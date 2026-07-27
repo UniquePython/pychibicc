@@ -60,6 +60,7 @@ class Node:
 
     # Function call
     funcName: str = ""
+    args: list[Node] = field(default_factory=list)
 
     var: Obj | None = None  # Used if kind == NodeKind.VAR
     val: int = 0  # Used if kind == NodeKind.NUM
