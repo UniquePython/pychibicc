@@ -1,5 +1,7 @@
 from enum import StrEnum
 
+from cint import CInt
+
 
 class Syntax(StrEnum):
     """Assembly syntax flavors the writer can emit."""
@@ -20,12 +22,12 @@ class AsmWriter:
         self.syntax = syntax
         self.code: list[str] = []
 
-    def mem(self, base: str, disp: int = 0) -> str:
+    def mem(self, base: str, disp: CInt = 0) -> str:
         """Formats a memory operand: dereference `base`, optionally offset by `disp` bytes.
 
         Args:
             base (str): The bare base register name (e.g. "rbp").
-            disp (int): Byte displacement, may be negative.
+            disp (CInt): Byte displacement, may be negative.
 
         Returns:
             str: The formatted memory operand for the current syntax.
@@ -52,11 +54,11 @@ class AsmWriter:
         """
         return f"%{name}" if self.syntax == Syntax.ATT else name
 
-    def imm(self, value: int) -> str:
+    def imm(self, value: CInt) -> str:
         """Formats an immediate operand for the current syntax.
 
         Args:
-            value (int): The immediate value.
+            value (CInt): The immediate value.
 
         Returns:
             str: The formatted immediate operand.

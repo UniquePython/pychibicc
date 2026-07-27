@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 
+from cint import CInt
+
 
 class TokenKind(Enum):
     """Represents the different kinds of lexical tokens.
@@ -21,10 +23,10 @@ class Token:
     """Represents a lexical token produced by the tokenizer."""
 
     kind: TokenKind  # Token kind
-    val: int = 0  # If kind is NUM, its value
+    val: CInt = 0  # If kind is NUM, its value
     loc: str = ""  # Token location
-    pos: int = 0  # Token starting position
-    length: int = 0  # Token length
+    pos: CInt = 0  # Token starting position
+    length: CInt = 0  # Token length
 
 
 def equal(tok: Token, op: str) -> bool:
@@ -66,14 +68,14 @@ def isIdentNonFirst(c: str) -> bool:
     return isIdentFirst(c) or ("0" <= c <= "9")
 
 
-def readPunct(source: str) -> int:
+def readPunct(source: str) -> CInt:
     """Reads a punctuator from the beginning of the string.
 
     Args:
         source (str): The source string to read from.
 
     Returns:
-        int: The length of the punctuator, or 0 if none is found.
+        CInt: The length of the punctuator, or 0 if none is found.
     """
     if source.startswith(("==", "!=", "<=", ">=")):
         return 2

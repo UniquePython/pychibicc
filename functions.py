@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from cint import CInt
 from nodes import Node
 from objects import Obj
 
@@ -13,4 +14,4 @@ class Function:
 
     body: Node | None = None  # Function body
     locals: list[Obj] = field(default_factory=list)  # Local variables
-    stackSize: int = 0  # Stack size
+    stackSize: CInt = 0  # Stack size

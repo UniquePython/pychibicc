@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
+from cint import CInt
 from dtypes import Dtype, DtypeKind, dtypeInt, pointerTo
 from error_reporter import ErrorReporter
 from objects import Obj
@@ -63,7 +64,7 @@ class Node:
     args: list[Node] = field(default_factory=list)
 
     var: Obj | None = None  # Used if kind == NodeKind.VAR
-    val: int = 0  # Used if kind == NodeKind.NUM
+    val: CInt = 0  # Used if kind == NodeKind.NUM
 
 
 def formatNode(node: Node | None) -> str:

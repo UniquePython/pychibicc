@@ -1,5 +1,6 @@
 import sys
 
+from cint import CInt
 from tokens import Token
 
 
@@ -22,11 +23,11 @@ class ErrorReporter:
         print(message, file=sys.stderr)
         sys.exit(1)
 
-    def errorAt(self, pos: int, message: str) -> None:
+    def errorAt(self, pos: CInt, message: str) -> None:
         """Reports an error at the specified position and exits.
 
         Args:
-            pos (int): The position at which the error occurred.
+            pos (CInt): The position at which the error occurred.
             message (str): The error message to be printed.
         """
         print(self.source, file=sys.stderr)

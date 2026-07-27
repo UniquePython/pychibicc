@@ -1,3 +1,4 @@
+from cint import CInt
 from dtypes import dtypeInt, isInteger
 from error_reporter import ErrorReporter
 from nodes import Node, NodeKind, addType
@@ -47,11 +48,11 @@ def newBinary(kind: NodeKind, lhs: Node, rhs: Node, tok: Token) -> Node:
     return Node(kind=kind, tok=tok, lhs=lhs, rhs=rhs)
 
 
-def newNum(val: int, tok: Token) -> Node:
+def newNum(val: CInt, tok: Token) -> Node:
     """Creates a number node.
 
     Args:
-        val (int): The integer value.
+        val (CInt): The integer value.
         tok (Token): The representative token.
 
     Returns:

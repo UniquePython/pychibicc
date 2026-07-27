@@ -1,5 +1,6 @@
 from collections import deque
 
+from cint import CInt
 from dtypes import Dtype, arrayOf, copyType, dtypeInt, funcType, pointerTo
 from error_reporter import ErrorReporter
 from functions import Function
@@ -38,7 +39,7 @@ def getIdent(tok: Token, errorReporter: ErrorReporter) -> str:
     return tok.loc
 
 
-def getNumber(tok: Token, errorReporter: ErrorReporter) -> int:
+def getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
     """Extracts a number from a token, erroring if it isn't one.
 
     Args:
@@ -46,7 +47,7 @@ def getNumber(tok: Token, errorReporter: ErrorReporter) -> int:
         errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
 
     Returns:
-        int: The number.
+        CInt: The number.
 
     Raises:
         SystemExit: If the token is not an identifier.
@@ -359,7 +360,7 @@ class Parser:
         body: list[Node] = []
 
         while not equal(self.tokens[0], "}"):
-            if equal(self.tokens[0], "int"):
+            if equal(self.tokens[0], "CInt"):
                 node = self.declaration()
             else:
                 node = self.stmt()

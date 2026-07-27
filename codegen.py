@@ -1,19 +1,20 @@
 from asm_writer import AsmWriter, Syntax
+from cint import CInt
 from dtypes import Dtype, DtypeKind
 from error_reporter import ErrorReporter
 from functions import Function
 from nodes import Node, NodeKind, formatNode
 
 
-def alignTo(n: int, align: int) -> int:
+def alignTo(n: CInt, align: CInt) -> CInt:
     """Rounds up a value to the nearest multiple of the specified alignment.
 
     Args:
-        n (int): The value to align.
-        align (int): The alignment boundary.
+        n (CInt): The value to align.
+        align (CInt): The alignment boundary.
 
     Returns:
-        int: The aligned value.
+        CInt: The aligned value.
     """
     return (n + align - 1) // align * align
 
@@ -54,11 +55,11 @@ class CodeGenerator:
         self.w = asmWriter
         self.errorReporter = errorReporter
 
-    def count(self) -> int:
+    def count(self) -> CInt:
         """Returns a unique sequential identifier.
 
         Returns:
-            int: The next unique identifier.
+            CInt: The next unique identifier.
         """
         value = self.labelCount
         self.labelCount += 1

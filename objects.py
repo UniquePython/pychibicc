@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cint import CInt
 from dtypes import Dtype
 
 
@@ -9,4 +10,4 @@ class Obj:
 
     name: str  # Variable name
     dtype: Dtype  # Data type
-    offset: int = 0  # Offset from RBP
+    offset: CInt = 0  # Offset from RBP

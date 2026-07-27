@@ -1,3 +1,4 @@
+from cint import CInt
 from error_reporter import ErrorReporter
 from tokens import (
     Token,
@@ -21,14 +22,14 @@ class Tokenizer:
         self.errorReporter = errorReporter
         self.source = self.errorReporter.source
 
-    def getNumber(self, tok: Token) -> int:
+    def getNumber(self, tok: Token) -> CInt:
         """Returns the numeric value of a number token.
 
         Args:
             tok (Token): The token whose value is to be retrieved.
 
         Returns:
-            int: The integer value stored in the token.
+            CInt: The integer value stored in the token.
 
         Raises:
             SystemExit: If the token is not a number token.
@@ -63,7 +64,7 @@ class Tokenizer:
                 tokens.append(
                     Token(
                         kind=TokenKind.NUM,
-                        val=int(self.source[start:idx]),
+                        val=CInt(self.source[start:idx]),
                         loc=self.source[start:idx],
                         pos=start,
                         length=idx - start,
