@@ -657,8 +657,7 @@ class Parser:
 
         ## Grammar:
             ```
-            primary = "(" expr ")" | ident args? | num
-            args = "(" ")"
+            primary = "(" expr ")" | "sizeof" unary | ident func-args? | num
             ```
 
         Returns:
@@ -672,6 +671,14 @@ class Parser:
             node = self._expr()
             self._expect(")")
             return node
+
+        if equal(self._tokens[0], "sizeof"):
+            tok = self._tokens.popleft()
+
+            node = self._unary()
+            addType(node, self._errorReporter)
+
+            return newNum(node.dtype.size, tok)
 
         tok = self._tokens[0]
 

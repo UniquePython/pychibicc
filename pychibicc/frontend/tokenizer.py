@@ -60,7 +60,7 @@ def _readPunct(source: str) -> CInt:
     return 0
 
 
-_KEYWORDS = {"return", "if", "else", "for", "while", "int"}
+_KEYWORDS = {"return", "if", "else", "for", "while", "int", "sizeof"}
 
 
 def _isKeyword(tok: Token) -> bool:
