@@ -66,6 +66,63 @@ class Node:
     val: int = 0  # Used if kind == NodeKind.NUM
 
 
+def formatNode(node: Node | None) -> str:
+    """Returns a compact C-like representation of an AST node."""
+
+    if node is None:
+        return "<none>"
+
+    match node.kind:
+        case NodeKind.NUM:
+            return str(node.val)
+
+        case NodeKind.VAR:
+            return node.var.name
+
+        case NodeKind.NEG:
+            return f"-({formatNode(node.lhs)})"
+
+        case NodeKind.ADD:
+            return f"({formatNode(node.lhs)} + {formatNode(node.rhs)})"
+
+        case NodeKind.SUB:
+            return f"({formatNode(node.lhs)} - {formatNode(node.rhs)})"
+
+        case NodeKind.MUL:
+            return f"({formatNode(node.lhs)} * {formatNode(node.rhs)})"
+
+        case NodeKind.DIV:
+            return f"({formatNode(node.lhs)} / {formatNode(node.rhs)})"
+
+        case NodeKind.ASSIGN:
+            return f"({formatNode(node.lhs)} = {formatNode(node.rhs)})"
+
+        case NodeKind.EQ:
+            return f"({formatNode(node.lhs)} == {formatNode(node.rhs)})"
+
+        case NodeKind.NE:
+            return f"({formatNode(node.lhs)} != {formatNode(node.rhs)})"
+
+        case NodeKind.LT:
+            return f"({formatNode(node.lhs)} < {formatNode(node.rhs)})"
+
+        case NodeKind.LE:
+            return f"({formatNode(node.lhs)} <= {formatNode(node.rhs)})"
+
+        case NodeKind.ADDR:
+            return f"&{formatNode(node.lhs)}"
+
+        case NodeKind.DEREF:
+            return f"*{formatNode(node.lhs)}"
+
+        case NodeKind.FUNCALL:
+            args = ", ".join(formatNode(arg) for arg in node.args)
+            return f"{node.funcName}({args})"
+
+        case _:
+            return f"<{node.kind.name}>"
+
+
 def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
     """Annotates the AST with type information.
 
@@ -116,6 +173,8 @@ def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
 
         case NodeKind.DEREF:
             if node.lhs.dtype.kind != DtypeKind.PTR:
-                errorReporter.errorTok(node.tok, "invalid pointer dereference")
+                errorReporter.errorTok(
+                    node.tok, f"{formatNode(node)} is an invalid pointer dereference"
+                )
 
             node.dtype = node.lhs.dtype.base

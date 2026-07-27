@@ -1,7 +1,7 @@
 from asm_writer import AsmWriter, Syntax
 from error_reporter import ErrorReporter
 from functions import Function
-from nodes import Node, NodeKind
+from nodes import Node, NodeKind, formatNode
 
 
 def alignTo(n: int, align: int) -> int:
@@ -89,14 +89,13 @@ class CodeGenerator:
                 self.w.emit2(
                     "lea", self.w.mem("rbp", node.var.offset), self.w.reg("rax")
                 )
-                self.w.commentLast(node.var.name)
                 return
 
             case NodeKind.DEREF:
                 self.genExpr(node.lhs)
                 return
 
-        self.errorReporter.errorTok(node.tok, "not an lvalue")
+        self.errorReporter.errorTok(node.tok, f"{formatNode(node)} is not an lvalue")
 
     def genExpr(self, node: Node) -> None:
         """Generates assembly code for an expression.
@@ -120,39 +119,51 @@ class CodeGenerator:
             case NodeKind.VAR:
                 self.genAddr(node)
                 self.w.emit2("mov", self.w.mem("rax"), self.w.reg("rax"))
+                self.w.commentLast(f"{formatNode(node)}")
                 return
 
             case NodeKind.DEREF:
                 self.genExpr(node.lhs)
                 self.w.emit2("mov", self.w.mem("rax"), self.w.reg("rax"))
+                self.w.commentLast(f"load {formatNode(node)}")
                 return
 
             case NodeKind.ADDR:
                 self.genAddr(node.lhs)
+                self.w.commentLast(f"{formatNode(node)}")
                 return
 
             case NodeKind.ASSIGN:
                 self.genAddr(node.lhs)
                 self.push()
+                self.w.commentLast("save assignment target address")
                 self.genExpr(node.rhs)
                 self.pop("rdi")
                 self.w.emit2("mov", self.w.reg("rax"), self.w.mem("rdi"))
                 return
 
             case NodeKind.FUNCALL:
-                for arg in node.args:
+                self.w.empty()
+                self.w.comment(f"--- begin call to {formatNode(node)} ---")
+
+                for i, arg in enumerate(node.args):
                     self.genExpr(arg)
                     self.push()
+                    self.w.commentLast(f"arg {i}: {formatNode(arg)}")
 
                 for reg in reversed(ARG_REGS[: len(node.args)]):
                     self.pop(reg)
 
                 self.w.emit2("mov", self.w.imm(0), self.w.reg("rax"))
                 self.w.emit1("call", node.funcName)
+
+                self.w.comment(f"--- end call to {formatNode(node)} ---")
+                self.w.empty()
                 return
 
         self.genExpr(node.rhs)
         self.push()
+        self.w.commentLast(f"save {formatNode(node.rhs)}")
         self.genExpr(node.lhs)
         self.pop("rdi")
 
@@ -176,6 +187,7 @@ class CodeGenerator:
 
             case NodeKind.EQ | NodeKind.NE | NodeKind.LT | NodeKind.LE:
                 self.w.emit2("cmp", self.w.reg("rdi"), self.w.reg("rax"))
+                self.w.commentLast(formatNode(node))
 
                 setInstruction = {
                     NodeKind.EQ: "sete",
@@ -192,7 +204,7 @@ class CodeGenerator:
                 self.w.emit2(extendInstruction, self.w.reg("al"), self.w.reg("rax"))
                 return
 
-        self.errorReporter.errorTok(node.tok, "invalid expression")
+        self.errorReporter.errorTok(node.tok, "internal error: invalid expression")
 
     def genStmt(self, node: Node) -> None:
         """Generates assembly code for a statement.
@@ -209,16 +221,16 @@ class CodeGenerator:
 
                 self.genExpr(node.cond)
                 self.w.emit2("cmp", self.w.imm(0), self.w.reg("rax"))
-                self.w.emit1("je", self.w.label(f"else.{c}"))
+                self.w.emit1("je", self.w.label(f"if.else.{c}"))
 
                 self.genStmt(node.then)
-                self.w.emit1("jmp", self.w.label(f"end.{c}"))
+                self.w.emit1("jmp", self.w.label(f"if.end.{c}"))
 
-                self.w.emitLabel(f"else.{c}")
+                self.w.emitLabel(f"if.else.{c}")
                 if node.els is not None:
                     self.genStmt(node.els)
 
-                self.w.emitLabel(f"end.{c}")
+                self.w.emitLabel(f"if.end.{c}")
                 return
 
             case NodeKind.FOR:
@@ -227,20 +239,20 @@ class CodeGenerator:
                 if node.init is not None:
                     self.genStmt(node.init)
 
-                self.w.emitLabel(f"begin.{c}")
+                self.w.emitLabel(f"for.begin.{c}")
 
                 if node.cond is not None:
                     self.genExpr(node.cond)
                     self.w.emit2("cmp", self.w.imm(0), self.w.reg("rax"))
-                    self.w.emit1("je", self.w.label(f"end.{c}"))
+                    self.w.emit1("je", self.w.label(f"for.end.{c}"))
 
                 self.genStmt(node.then)
 
                 if node.inc is not None:
                     self.genExpr(node.inc)
 
-                self.w.emit1("jmp", self.w.label(f"begin.{c}"))
-                self.w.emitLabel(f"end.{c}")
+                self.w.emit1("jmp", self.w.label(f"for.begin.{c}"))
+                self.w.emitLabel(f"for.end.{c}")
                 return
 
             case NodeKind.BLOCK:
@@ -258,7 +270,7 @@ class CodeGenerator:
                 self.genExpr(node.lhs)
                 return
 
-        self.errorReporter.errorTok(node.tok, "invalid statement")
+        self.errorReporter.errorTok(node.tok, "internal error: invalid statement")
 
     def codegen(self, program: Function) -> str:
         """Generates assembly code for the specified program.
@@ -279,7 +291,7 @@ class CodeGenerator:
 
         # Prologue.
         self.w.empty()
-        self.w.comment("Prologue")
+        self.w.comment("--- Prologue ---")
         self.w.emit1("push", self.w.reg("rbp"))
         self.w.commentLast("save caller's frame pointer")
         self.w.emit2("mov", self.w.reg("rsp"), self.w.reg("rbp"))
@@ -289,12 +301,16 @@ class CodeGenerator:
 
         if program.locals:
             self.w.empty()
-            self.w.comment("Stack Frame:")
+            self.w.comment("--- Stack Frame ---")
             for var in program.locals:
                 self.w.comment(f"\t{self.w.mem('rbp', var.offset)}: {var.name}")
 
+        self.w.empty()
+        self.w.comment("--- Body ---")
         self.genStmt(program.body)
-        assert self.depth == 0
+        assert self.depth == 0, (
+            f"unbalanced push/pop: depth={self.depth} at end of codegen"
+        )
 
         self.w.emitLabel("return")
         self.w.emit2("mov", self.w.reg("rbp"), self.w.reg("rsp"))
