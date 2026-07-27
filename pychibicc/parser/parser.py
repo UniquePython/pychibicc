@@ -560,7 +560,7 @@ class Parser:
         ## Grammar:
             ```
             unary = ("+" | "-" | "*" | "&") unary
-                    | primary
+                    | postfix
             ```
 
         Returns:
@@ -582,7 +582,35 @@ class Parser:
             tok = self._tokens.popleft()
             return newUnary(NodeKind.DEREF, self._unary(), tok)
 
-        return self._primary()
+        return self._postfix()
+
+    def _postfix(self) -> Node:
+        """Parses a postfix expression.
+
+        ## Grammar:
+            ```
+            postfix = primary ("[" expr "]")*
+            ```
+
+        Returns:
+            Node: The root node of the parsed expression.
+        """
+        node = self._primary()
+
+        while equal(self._tokens[0], "["):
+            start = self._tokens.popleft()
+
+            idx = self._expr()
+            self._expect("]")
+
+            # x[y] is equivalent to *(x + y)
+            node = newUnary(
+                NodeKind.DEREF,
+                newAdd(node, idx, start, self._errorReporter),
+                start,
+            )
+
+        return node
 
     def _newLVar(self, name: str, dtype: Dtype) -> Obj:
         """Creates a new local variable and registers it in scope.
