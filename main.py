@@ -1,4 +1,4 @@
-import sys
+import argparse
 
 from pychibicc.backend.asm_writer import AsmWriter, Syntax
 from pychibicc.backend.codegen import CodeGenerator
@@ -8,26 +8,27 @@ from pychibicc.parser.parser import Parser
 
 
 def main() -> None:
-    if not (2 <= len(sys.argv) <= 3):
-        ErrorReporter.error(
-            f"{sys.argv[0]}: invalid number of arguments\n"
-            "Usage: main.py <source> [att|intel]"
-        )
+    cli = argparse.ArgumentParser(prog="pychibicc")
 
-    source = sys.argv[1]
+    cli.add_argument(
+        "source",
+        help="The C source code to compile.",
+    )
 
-    if len(sys.argv) == 3:
-        syntaxStr = sys.argv[2]
+    cli.add_argument(
+        "-masm",
+        dest="syntax",
+        type=Syntax,
+        choices=list(Syntax),
+        default=Syntax.ATT,
+        metavar="{att,intel}",
+        help="Assembly syntax to emit (default: att).",
+    )
 
-        try:
-            syntax = Syntax(syntaxStr)
-        except ValueError:
-            ErrorReporter.error(
-                f"unknown assembly syntax: {syntaxStr}\n"
-                f"Valid syntaxes are: {', '.join(Syntax)}"
-            )
-    else:
-        syntax = Syntax.ATT
+    args = cli.parse_args()
+
+    source = args.source
+    syntax = args.syntax
 
     errorReporter = ErrorReporter(source)
 
@@ -35,12 +36,12 @@ def main() -> None:
     tokens = tokenizer.tokenize()
 
     parser = Parser(errorReporter, tokens)
-    node = parser.parse()
+    program = parser.parse()
 
     asmWriter = AsmWriter(syntax)
 
     codeGenerator = CodeGenerator(asmWriter, errorReporter)
-    code = codeGenerator.codegen(node)
+    code = codeGenerator.codegen(program)
 
     print(code)
 

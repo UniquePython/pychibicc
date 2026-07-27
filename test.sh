@@ -28,7 +28,7 @@ assert() {
         asm_file="$build_dir/$syntax/test${test_num}.s"
         bin_file="$build_dir/$syntax/test${test_num}"
 
-        python3 main.py "$input" "$syntax" > "$asm_file" || exit 1
+        python3 main.py "$input" -masm "$syntax" > "$asm_file" || exit 1
         gcc -static -o "$bin_file" "$asm_file" "$build_dir/tmp2.o"
         "$bin_file"
         actual="$?"
