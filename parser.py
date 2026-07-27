@@ -360,7 +360,7 @@ class Parser:
         body: list[Node] = []
 
         while not equal(self.tokens[0], "}"):
-            if equal(self.tokens[0], "CInt"):
+            if equal(self.tokens[0], "int"):
                 node = self.declaration()
             else:
                 node = self.stmt()
