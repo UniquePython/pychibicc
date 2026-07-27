@@ -1,6 +1,6 @@
 from collections import deque
 
-from dtypes import Dtype, copyType, dtypeInt, funcType, pointerTo
+from dtypes import Dtype, arrayOf, copyType, dtypeInt, funcType, pointerTo
 from error_reporter import ErrorReporter
 from functions import Function
 from node_constructors import (
@@ -34,6 +34,25 @@ def getIdent(tok: Token, errorReporter: ErrorReporter) -> str:
     """
     if tok.kind != TokenKind.IDENT:
         errorReporter.errorTok(tok, "expected an identifier")
+
+    return tok.loc
+
+
+def getNumber(tok: Token, errorReporter: ErrorReporter) -> int:
+    """Extracts a number from a token, erroring if it isn't one.
+
+    Args:
+        tok (Token): The token to extract from.
+        errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
+
+    Returns:
+        int: The number.
+
+    Raises:
+        SystemExit: If the token is not an identifier.
+    """
+    if tok.kind != TokenKind.NUM:
+        errorReporter.errorTok(tok, "expected a number")
 
     return tok.loc
 
@@ -110,27 +129,21 @@ class Parser:
         self.expect("int")
         return dtypeInt
 
-    def typeSuffix(self, dtype: Dtype) -> Dtype:
-        """Parses a type suffix.
+    def funcParams(self, dtype: Dtype) -> Dtype:
+        """Parses function parameters.
 
         ## Grammar:
             ```
-            type-suffix = ("(" func-params? ")")?
-            func-params = param ("," param)*
+            func-params = (param ("," param)*)? ")"
             param       = declspec declarator
             ```
 
         Args:
-            dtype (Dtype): The type constructed so far.
+            dtype (Dtype): The function return type.
 
         Returns:
-            Dtype: The resulting type.
+            Dtype: The resulting function type.
         """
-        if not equal(self.tokens[0], "("):
-            return dtype
-
-        self.expect("(")
-
         params: list[Dtype] = []
 
         while not equal(self.tokens[0], ")"):
@@ -146,6 +159,40 @@ class Parser:
         func = funcType(dtype)
         func.params = params
         return func
+
+    def typeSuffix(self, dtype: Dtype) -> Dtype:
+        """Parses a type suffix.
+
+        ## Grammar:
+            ```
+            type-suffix = "(" func-params
+                        | "[" num "]"
+                        | ε
+            ```
+
+        Args:
+            dtype (Dtype): The type constructed so far.
+
+        Returns:
+            Dtype: The resulting type.
+        """
+        if equal(self.tokens[0], "("):
+            self.expect("(")
+            return self.funcParams(dtype)
+
+        if equal(self.tokens[0], "["):
+            self.expect("[")
+
+            tok = self.tokens.popleft()
+
+            if tok.kind != TokenKind.NUM:
+                self.errorReporter.errorTok(tok, "expected an array size")
+
+            self.expect("]")
+
+            return arrayOf(dtype, tok.val)
+
+        return dtype
 
     def declarator(self, dtype: Dtype) -> Dtype:
         """Parses a declarator.

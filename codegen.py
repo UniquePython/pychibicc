@@ -1,4 +1,5 @@
 from asm_writer import AsmWriter, Syntax
+from dtypes import Dtype, DtypeKind
 from error_reporter import ErrorReporter
 from functions import Function
 from nodes import Node, NodeKind, formatNode
@@ -27,7 +28,7 @@ def assignLVarOffsets(functions: list[Function]) -> None:
         offset = 0
 
         for var in reversed(function.locals):
-            offset += 8
+            offset += var.dtype.size
             var.offset = -offset
 
         function.stackSize = alignTo(offset, 16)
@@ -77,6 +78,28 @@ class CodeGenerator:
         self.w.emit1("pop", self.w.reg(name))
         self.depth -= 1
 
+    def load(self, dtype: Dtype) -> None:
+        """Loads the value pointed to by %rax into %rax.
+
+        Arrays are not loaded. In C, evaluating an array expression yields the
+        address of its first element (array-to-pointer decay) rather than the
+        array itself.
+
+        Args:
+            dtype (Dtype): The type of the value pointed to by %rax.
+        """
+        if dtype.kind == DtypeKind.ARRAY:
+            # Arrays are not loaded into registers. Their value is their address,
+            # implementing array-to-pointer decay.
+            return
+
+        self.w.emit2("mov", self.w.mem("rax"), self.w.reg("rax"))
+
+    def store(self) -> None:
+        """Stores %rax into the address at the top of the stack."""
+        self.pop("rdi")
+        self.w.emit2("mov", self.w.reg("rax"), self.w.mem("rdi"))
+
     def genAddr(self, node: Node) -> None:
         """Generates the absolute address of the specified node.
 
@@ -120,13 +143,13 @@ class CodeGenerator:
 
             case NodeKind.VAR:
                 self.genAddr(node)
-                self.w.emit2("mov", self.w.mem("rax"), self.w.reg("rax"))
-                self.w.commentLast(f"{formatNode(node)}")
+                self.load(node.dtype)
+                self.w.commentLast(f"load {formatNode(node)}")
                 return
 
             case NodeKind.DEREF:
                 self.genExpr(node.lhs)
-                self.w.emit2("mov", self.w.mem("rax"), self.w.reg("rax"))
+                self.load(node.dtype)
                 self.w.commentLast(f"load {formatNode(node)}")
                 return
 
@@ -144,8 +167,7 @@ class CodeGenerator:
 
                 self.genExpr(node.rhs)
 
-                self.pop("rdi")
-                self.w.emit2("mov", self.w.reg("rax"), self.w.mem("rdi"))
+                self.store()
                 self.w.commentLast(f"store into {formatNode(node.lhs)}")
                 return
 

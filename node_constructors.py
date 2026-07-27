@@ -127,7 +127,7 @@ def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
         lhs, rhs = rhs, lhs
 
     # ptr + num
-    rhs = newBinary(NodeKind.MUL, rhs, newNum(8, tok), tok)
+    rhs = newBinary(NodeKind.MUL, rhs, newNum(lhs.dtype.base.size, tok), tok)
     addType(rhs, errorReporter)
 
     return newBinary(NodeKind.ADD, lhs, rhs, tok)
@@ -154,7 +154,7 @@ def newSub(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
 
     # ptr - num
     if lhs.dtype.base is not None and isInteger(rhs.dtype):
-        rhs = newBinary(NodeKind.MUL, rhs, newNum(8, tok), tok)
+        rhs = newBinary(NodeKind.MUL, rhs, newNum(lhs.dtype.base.size, tok), tok)
         addType(rhs, errorReporter)
 
         node = newBinary(NodeKind.SUB, lhs, rhs, tok)
@@ -166,6 +166,6 @@ def newSub(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
         node = newBinary(NodeKind.SUB, lhs, rhs, tok)
         node.dtype = dtypeInt
 
-        return newBinary(NodeKind.DIV, node, newNum(8, tok), tok)
+        return newBinary(NodeKind.DIV, node, newNum(lhs.dtype.base.size, tok), tok)
 
     errorReporter.errorTok(tok, "invalid operands")

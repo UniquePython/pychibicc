@@ -13,6 +13,7 @@ class DtypeKind(Enum):
     INT = auto()
     PTR = auto()
     FUNC = auto()
+    ARRAY = auto()
 
 
 @dataclass
@@ -20,19 +21,30 @@ class Dtype:
     """Represents a type."""
 
     kind: DtypeKind  # Type kind
+    size: int = 0  # sizeof() value
 
-    # Pointer
-    base: Dtype | None = None  # Pointee type
+    # Pointer-to or array-of type. We intentionally use the same member
+    # to represent pointer/array duality in C.
+    #
+    # In many contexts in which a pointer is expected, we examine this
+    # member instead of "kind" member to determine whether a type is a
+    # pointer or not. That means in many contexts "array of T" is
+    # naturally handled as if it were "pointer to T", as required by
+    # the C spec.
+    base: Dtype | None = None
 
     # Declaration
     name: Token | None = None  # Declarator token
+
+    # Array
+    arrayLen: int = 0
 
     # Function type
     returnDtype: Dtype | None = None
     params: list[Dtype] = field(default_factory=list)
 
 
-dtypeInt = Dtype(DtypeKind.INT)
+dtypeInt = Dtype(kind=DtypeKind.INT, size=8)
 
 
 def isInteger(dtype: Dtype) -> bool:
@@ -68,10 +80,7 @@ def pointerTo(base: Dtype) -> Dtype:
     Returns:
         Dtype: The resulting pointer type.
     """
-    return Dtype(
-        kind=DtypeKind.PTR,
-        base=base,
-    )
+    return Dtype(kind=DtypeKind.PTR, size=8, base=base)
 
 
 def funcType(returnDtype: Dtype) -> Dtype:
@@ -83,7 +92,22 @@ def funcType(returnDtype: Dtype) -> Dtype:
     Returns:
         Dtype: The newly created function type.
     """
+    return Dtype(kind=DtypeKind.FUNC, returnDtype=returnDtype)
+
+
+def arrayOf(base: Dtype, length: int) -> Dtype:
+    """Creates an array type.
+
+    Args:
+        base (Dtype): The array element type.
+        length (int): The number of elements.
+
+    Returns:
+        Dtype: The resulting array type.
+    """
     return Dtype(
-        kind=DtypeKind.FUNC,
-        returnDtype=returnDtype,
+        kind=DtypeKind.ARRAY,
+        size=base.size * length,
+        base=base,
+        arrayLen=length,
     )

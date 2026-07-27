@@ -151,14 +151,16 @@ def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
         addType(arg, errorReporter)
 
     match node.kind:
-        case (
-            NodeKind.ADD
-            | NodeKind.SUB
-            | NodeKind.MUL
-            | NodeKind.DIV
-            | NodeKind.NEG
-            | NodeKind.ASSIGN
-        ):
+        case NodeKind.ADD | NodeKind.SUB | NodeKind.MUL | NodeKind.DIV | NodeKind.NEG:
+            node.dtype = node.lhs.dtype
+
+        case NodeKind.ASSIGN:
+            if node.lhs.dtype.kind == DtypeKind.ARRAY:
+                errorReporter.errorTok(
+                    node.lhs.tok,
+                    f"{formatNode(node.lhs)} is not an lvalue",
+                )
+
             node.dtype = node.lhs.dtype
 
         case (
@@ -175,12 +177,16 @@ def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
             node.dtype = node.var.dtype
 
         case NodeKind.ADDR:
-            node.dtype = pointerTo(node.lhs.dtype)
+            if node.lhs.dtype.kind == DtypeKind.ARRAY:
+                node.dtype = pointerTo(node.lhs.dtype.base)
+            else:
+                node.dtype = pointerTo(node.lhs.dtype)
 
         case NodeKind.DEREF:
-            if node.lhs.dtype.kind != DtypeKind.PTR:
+            if node.lhs.dtype.base is None:
                 errorReporter.errorTok(
-                    node.tok, f"{formatNode(node)} is an invalid pointer dereference"
+                    node.tok,
+                    f"{formatNode(node)} is an invalid pointer dereference",
                 )
 
             node.dtype = node.lhs.dtype.base
