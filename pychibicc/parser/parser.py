@@ -196,6 +196,7 @@ class Parser:
             sz = _getNumber(tok, self._errorReporter)
             self._expect("]")
 
+            dtype = self._typeSuffix(dtype)
             return arrayOf(dtype, sz)
 
         return dtype
