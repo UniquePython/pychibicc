@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from copy import copy
+from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from tokens import Token
@@ -28,6 +29,7 @@ class Dtype:
 
     # Function type
     returnDtype: Dtype | None = None
+    params: list[Dtype] = field(default_factory=list)
 
 
 dtypeInt = Dtype(DtypeKind.INT)
@@ -43,6 +45,18 @@ def isInteger(dtype: Dtype) -> bool:
         bool: True if the type is an integer, otherwise False.
     """
     return dtype.kind == DtypeKind.INT
+
+
+def copyType(dtype: Dtype) -> Dtype:
+    """Creates a shallow copy of a type.
+
+    Args:
+        dtype (Dtype): The type to copy.
+
+    Returns:
+        Dtype: A shallow copy of the type.
+    """
+    return copy(dtype)
 
 
 def pointerTo(base: Dtype) -> Dtype:

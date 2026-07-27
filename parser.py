@@ -1,6 +1,6 @@
 from collections import deque
 
-from dtypes import Dtype, dtypeInt, funcType, pointerTo
+from dtypes import Dtype, copyType, dtypeInt, funcType, pointerTo
 from error_reporter import ErrorReporter
 from functions import Function
 from node_constructors import (
@@ -115,7 +115,9 @@ class Parser:
 
         ## Grammar:
             ```
-            type-suffix = ("(" ")")?
+            type-suffix = ("(" func-params? ")")?
+            func-params = param ("," param)*
+            param       = declspec declarator
             ```
 
         Args:
@@ -124,12 +126,26 @@ class Parser:
         Returns:
             Dtype: The resulting type.
         """
-        if equal(self.tokens[0], "("):
-            self.expect("(")
-            self.expect(")")
-            return funcType(dtype)
+        if not equal(self.tokens[0], "("):
+            return dtype
 
-        return dtype
+        self.expect("(")
+
+        params: list[Dtype] = []
+
+        while not equal(self.tokens[0], ")"):
+            if params:
+                self.expect(",")
+
+            baseType = self.declspec()
+            paramType = self.declarator(baseType)
+            params.append(copyType(paramType))
+
+        self.expect(")")
+
+        func = funcType(dtype)
+        func.params = params
+        return func
 
     def declarator(self, dtype: Dtype) -> Dtype:
         """Parses a declarator.
@@ -597,6 +613,15 @@ class Parser:
 
         self.errorReporter.errorTok(tok, "expected an expression")
 
+    def createParamLVars(self, params: list[Dtype]) -> None:
+        """Creates local variables for function parameters.
+
+        Args:
+            params (list[Dtype]): The function parameter types.
+        """
+        for param in params:
+            self.newLVar(getIdent(param.name, self.errorReporter), param)
+
     def function(self) -> Function:
         """Parses a function definition.
 
@@ -615,6 +640,8 @@ class Parser:
         self.locals.clear()
 
         fn = Function(name=getIdent(dtype.name, self.errorReporter))
+        self.createParamLVars(dtype.params)
+        fn.params = self.locals.copy()
 
         tok = self.tokens[0]
         self.expect("{")

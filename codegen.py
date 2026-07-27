@@ -344,6 +344,13 @@ class CodeGenerator:
                 for var in function.locals:
                     self.w.comment(f"\t{self.w.mem('rbp', var.offset)}: {var.name}")
 
+            # Save passed-by-register arguments to their stack slots.
+            for i, var in enumerate(function.params):
+                self.w.emit2(
+                    "mov", self.w.reg(ARG_REGS[i]), self.w.mem("rbp", var.offset)
+                )
+                self.w.commentLast(f"store parameter '{var.name}'")
+
             self.w.empty()
             self.w.comment("--- Body ---")
             self.genStmt(function.body)

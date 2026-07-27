@@ -147,6 +147,9 @@ def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
     for stmt in node.body:
         addType(stmt, errorReporter)
 
+    for arg in node.args:
+        addType(arg, errorReporter)
+
     match node.kind:
         case (
             NodeKind.ADD
