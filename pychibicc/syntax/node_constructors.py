@@ -1,9 +1,9 @@
-from cint import CInt
-from dtypes import dtypeInt, isInteger
-from error_reporter import ErrorReporter
-from nodes import Node, NodeKind, addType
-from objects import Obj
-from tokens import Token
+from pychibicc.ctype.cint import CInt
+from pychibicc.diagnostics.error_reporter import ErrorReporter
+from pychibicc.frontend.tokens import Token
+from pychibicc.syntax.dtypes import dtypeInt, isInteger
+from pychibicc.syntax.nodes import Node, NodeKind, addType
+from pychibicc.syntax.objects import Obj
 
 
 def newNode(kind: NodeKind, tok: Token) -> Node:

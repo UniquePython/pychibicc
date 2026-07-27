@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from cint import CInt
-from dtypes import Dtype
+from pychibicc.ctype.cint import CInt
+from pychibicc.syntax.dtypes import Dtype
 
 
 @dataclass

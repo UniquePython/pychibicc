@@ -1,7 +1,7 @@
 import sys
 
-from cint import CInt
-from tokens import Token
+from pychibicc.ctype.cint import CInt
+from pychibicc.frontend.tokens import Token
 
 
 class ErrorReporter:

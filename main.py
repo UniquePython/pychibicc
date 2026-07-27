@@ -1,10 +1,10 @@
 import sys
 
-from asm_writer import AsmWriter, Syntax
-from codegen import CodeGenerator
-from error_reporter import ErrorReporter
-from parser import Parser
-from tokenizer import Tokenizer
+from pychibicc.backend.asm_writer import AsmWriter, Syntax
+from pychibicc.backend.codegen import CodeGenerator
+from pychibicc.diagnostics.error_reporter import ErrorReporter
+from pychibicc.frontend.tokenizer import Tokenizer
+from pychibicc.parser.parser import Parser
 
 
 def main() -> None:

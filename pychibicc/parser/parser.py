@@ -1,10 +1,19 @@
 from collections import deque
 
-from cint import CInt
-from dtypes import Dtype, arrayOf, copyType, dtypeInt, funcType, pointerTo
-from error_reporter import ErrorReporter
-from functions import Function
-from node_constructors import (
+from pychibicc.ctype.cint import CInt
+from pychibicc.diagnostics.error_reporter import ErrorReporter
+from pychibicc.frontend.tokenizer import equal
+from pychibicc.frontend.tokens import Token, TokenKind
+from pychibicc.syntax.dtypes import (
+    Dtype,
+    arrayOf,
+    copyType,
+    dtypeInt,
+    funcType,
+    pointerTo,
+)
+from pychibicc.syntax.functions import Function
+from pychibicc.syntax.node_constructors import (
     newAdd,
     newBinary,
     newBlock,
@@ -15,12 +24,11 @@ from node_constructors import (
     newUnary,
     newVarNode,
 )
-from nodes import Node, NodeKind, addType
-from objects import Obj
-from tokens import Token, TokenKind, equal
+from pychibicc.syntax.nodes import Node, NodeKind, addType
+from pychibicc.syntax.objects import Obj
 
 
-def getIdent(tok: Token, errorReporter: ErrorReporter) -> str:
+def _getIdent(tok: Token, errorReporter: ErrorReporter) -> str:
     """Extracts the identifier name from a token, erroring if it isn't one.
 
     Args:
@@ -39,7 +47,7 @@ def getIdent(tok: Token, errorReporter: ErrorReporter) -> str:
     return tok.loc
 
 
-def getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
+def _getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
     """Extracts a number from a token, erroring if it isn't one.
 
     Args:
@@ -55,7 +63,7 @@ def getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
     if tok.kind != TokenKind.NUM:
         errorReporter.errorTok(tok, "expected a number")
 
-    return tok.loc
+    return tok.val
 
 
 class Parser:
@@ -68,11 +76,11 @@ class Parser:
             errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
             tokens (list[Token]): The token stream to parse.
         """
-        self.errorReporter = errorReporter
-        self.tokens: deque[Token] = deque(tokens)
-        self.locals: list[Obj] = []
+        self._errorReporter = errorReporter
+        self._tokens: deque[Token] = deque(tokens)
+        self._locals: list[Obj] = []
 
-    def expect(self, s: str) -> None:
+    def _expect(self, s: str) -> None:
         """Consumes the current token if it matches the expected string.
 
         Args:
@@ -81,12 +89,12 @@ class Parser:
         Raises:
             SystemExit: If the current token does not match the expected string.
         """
-        tok = self.tokens.popleft()
+        tok = self._tokens.popleft()
 
         if not equal(tok, s):
-            self.errorReporter.errorTok(tok, f"expected '{s}'")
+            self._errorReporter.errorTok(tok, f"expected '{s}'")
 
-    def consume(self, s: str) -> bool:
+    def _consume(self, s: str) -> bool:
         """Consumes the current token if it matches the expected string.
 
         Args:
@@ -95,13 +103,13 @@ class Parser:
         Returns:
             bool: True if the token was consumed, otherwise False.
         """
-        if equal(self.tokens[0], s):
-            self.tokens.popleft()
+        if equal(self._tokens[0], s):
+            self._tokens.popleft()
             return True
 
         return False
 
-    def findVar(self, tok: Token) -> Obj | None:
+    def _findVar(self, tok: Token) -> Obj | None:
         """Finds a local variable by name.
 
         Args:
@@ -110,13 +118,13 @@ class Parser:
         Returns:
             Obj | None: The matching local variable, or None if no match is found.
         """
-        for var in self.locals:
+        for var in self._locals:
             if var.name == tok.loc:
                 return var
 
         return None
 
-    def declspec(self) -> Dtype:
+    def _declspec(self) -> Dtype:
         """Parses declaration specifiers.
 
         ## Grammar:
@@ -127,10 +135,10 @@ class Parser:
         Returns:
             Type: The parsed type.
         """
-        self.expect("int")
+        self._expect("int")
         return dtypeInt
 
-    def funcParams(self, dtype: Dtype) -> Dtype:
+    def _funcParams(self, dtype: Dtype) -> Dtype:
         """Parses function parameters.
 
         ## Grammar:
@@ -147,21 +155,21 @@ class Parser:
         """
         params: list[Dtype] = []
 
-        while not equal(self.tokens[0], ")"):
+        while not equal(self._tokens[0], ")"):
             if params:
-                self.expect(",")
+                self._expect(",")
 
-            baseType = self.declspec()
-            paramType = self.declarator(baseType)
+            baseType = self._declspec()
+            paramType = self._declarator(baseType)
             params.append(copyType(paramType))
 
-        self.expect(")")
+        self._expect(")")
 
         func = funcType(dtype)
         func.params = params
         return func
 
-    def typeSuffix(self, dtype: Dtype) -> Dtype:
+    def _typeSuffix(self, dtype: Dtype) -> Dtype:
         """Parses a type suffix.
 
         ## Grammar:
@@ -177,25 +185,22 @@ class Parser:
         Returns:
             Dtype: The resulting type.
         """
-        if equal(self.tokens[0], "("):
-            self.expect("(")
-            return self.funcParams(dtype)
+        if equal(self._tokens[0], "("):
+            self._expect("(")
+            return self._funcParams(dtype)
 
-        if equal(self.tokens[0], "["):
-            self.expect("[")
+        if equal(self._tokens[0], "["):
+            self._expect("[")
 
-            tok = self.tokens.popleft()
+            tok = self._tokens.popleft()
+            sz = _getNumber(tok, self._errorReporter)
+            self._expect("]")
 
-            if tok.kind != TokenKind.NUM:
-                self.errorReporter.errorTok(tok, "expected an array size")
-
-            self.expect("]")
-
-            return arrayOf(dtype, tok.val)
+            return arrayOf(dtype, sz)
 
         return dtype
 
-    def declarator(self, dtype: Dtype) -> Dtype:
+    def _declarator(self, dtype: Dtype) -> Dtype:
         """Parses a declarator.
 
         ## Grammar:
@@ -209,22 +214,22 @@ class Parser:
         Returns:
             Dtype: The parsed type.
         """
-        while self.consume("*"):
+        while self._consume("*"):
             dtype = pointerTo(dtype)
 
-        tok = self.tokens[0]
+        tok = self._tokens[0]
 
         if tok.kind != TokenKind.IDENT:
-            self.errorReporter.errorTok(tok, "expected a variable name")
+            self._errorReporter.errorTok(tok, "expected a variable name")
 
-        self.tokens.popleft()
+        self._tokens.popleft()
 
-        dtype = self.typeSuffix(dtype)
+        dtype = self._typeSuffix(dtype)
         dtype.name = tok
 
         return dtype
 
-    def declaration(self) -> Node:
+    def _declaration(self) -> Node:
         """Parses a declaration.
 
         ## Grammar:
@@ -235,36 +240,36 @@ class Parser:
         Returns:
             Node: The parsed declaration statement.
         """
-        baseDtype = self.declspec()
+        baseDtype = self._declspec()
 
         body: list[Node] = []
         i = 0
 
-        while not equal(self.tokens[0], ";"):
+        while not equal(self._tokens[0], ";"):
             if i > 0:
-                self.expect(",")
+                self._expect(",")
             i += 1
 
-            dtype = self.declarator(baseDtype)
-            var = self.newLVar(getIdent(dtype.name, self.errorReporter), dtype)
+            dtype = self._declarator(baseDtype)
+            var = self._newLVar(_getIdent(dtype.name, self._errorReporter), dtype)
 
-            if not equal(self.tokens[0], "="):
+            if not equal(self._tokens[0], "="):
                 continue
 
-            tok = self.tokens.popleft()
+            tok = self._tokens.popleft()
 
             lhs = newVarNode(var, dtype.name)
-            rhs = self.assign()
+            rhs = self._assign()
 
             node = newBinary(NodeKind.ASSIGN, lhs, rhs, tok)
             body.append(newUnary(NodeKind.EXPR_STMT, node, tok))
 
-        tok = self.tokens[0]
-        self.expect(";")
+        tok = self._tokens[0]
+        self._expect(";")
 
         return newBlock(body, tok)
 
-    def stmt(self) -> Node:
+    def _stmt(self) -> Node:
         """Parses a statement.
 
         ## Grammar:
@@ -280,70 +285,70 @@ class Parser:
         Returns:
             Node: The root node of the parsed statement.
         """
-        if equal(self.tokens[0], "return"):
-            tok = self.tokens.popleft()
+        if equal(self._tokens[0], "return"):
+            tok = self._tokens.popleft()
 
-            node = newUnary(NodeKind.RETURN, self.expr(), tok)
+            node = newUnary(NodeKind.RETURN, self._expr(), tok)
 
-            self.expect(";")
+            self._expect(";")
             return node
 
-        if equal(self.tokens[0], "if"):
-            tok = self.tokens.popleft()
+        if equal(self._tokens[0], "if"):
+            tok = self._tokens.popleft()
 
             node = newNode(NodeKind.IF, tok)
 
-            self.expect("(")
-            node.cond = self.expr()
-            self.expect(")")
+            self._expect("(")
+            node.cond = self._expr()
+            self._expect(")")
 
-            node.then = self.stmt()
+            node.then = self._stmt()
 
-            if equal(self.tokens[0], "else"):
-                self.tokens.popleft()
-                node.els = self.stmt()
+            if equal(self._tokens[0], "else"):
+                self._tokens.popleft()
+                node.els = self._stmt()
 
             return node
 
-        if equal(self.tokens[0], "for"):
-            tok = self.tokens.popleft()
+        if equal(self._tokens[0], "for"):
+            tok = self._tokens.popleft()
 
             node = newNode(NodeKind.FOR, tok)
 
-            self.expect("(")
+            self._expect("(")
 
-            node.init = self.exprStmt()
+            node.init = self._exprStmt()
 
-            if not equal(self.tokens[0], ";"):
-                node.cond = self.expr()
-            self.expect(";")
+            if not equal(self._tokens[0], ";"):
+                node.cond = self._expr()
+            self._expect(";")
 
-            if not equal(self.tokens[0], ")"):
-                node.inc = self.expr()
-            self.expect(")")
+            if not equal(self._tokens[0], ")"):
+                node.inc = self._expr()
+            self._expect(")")
 
-            node.then = self.stmt()
+            node.then = self._stmt()
             return node
 
-        if equal(self.tokens[0], "while"):
-            tok = self.tokens.popleft()
+        if equal(self._tokens[0], "while"):
+            tok = self._tokens.popleft()
 
             node = newNode(NodeKind.FOR, tok)
 
-            self.expect("(")
-            node.cond = self.expr()
-            self.expect(")")
+            self._expect("(")
+            node.cond = self._expr()
+            self._expect(")")
 
-            node.then = self.stmt()
+            node.then = self._stmt()
             return node
 
-        if equal(self.tokens[0], "{"):
-            tok = self.tokens.popleft()
-            return self.compoundStmt(tok)
+        if equal(self._tokens[0], "{"):
+            tok = self._tokens.popleft()
+            return self._compoundStmt(tok)
 
-        return self.exprStmt()
+        return self._exprStmt()
 
-    def compoundStmt(self, tok: Token) -> Node:
+    def _compoundStmt(self, tok: Token) -> Node:
         """Parses a compound statement.
 
         ## Grammar:
@@ -359,20 +364,20 @@ class Parser:
         """
         body: list[Node] = []
 
-        while not equal(self.tokens[0], "}"):
-            if equal(self.tokens[0], "int"):
-                node = self.declaration()
+        while not equal(self._tokens[0], "}"):
+            if equal(self._tokens[0], "int"):
+                node = self._declaration()
             else:
-                node = self.stmt()
+                node = self._stmt()
 
-            addType(node, self.errorReporter)
+            addType(node, self._errorReporter)
             body.append(node)
 
-        self.expect("}")
+        self._expect("}")
 
         return newBlock(body, tok)
 
-    def exprStmt(self) -> Node:
+    def _exprStmt(self) -> Node:
         """Parses an expression statement.
 
         ## Grammar:
@@ -383,18 +388,18 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression statement.
         """
-        if equal(self.tokens[0], ";"):
-            tok = self.tokens.popleft()
+        if equal(self._tokens[0], ";"):
+            tok = self._tokens.popleft()
             return newNode(NodeKind.BLOCK, tok)
 
-        tok = self.tokens[0]
+        tok = self._tokens[0]
 
-        node = newUnary(NodeKind.EXPR_STMT, self.expr(), tok)
+        node = newUnary(NodeKind.EXPR_STMT, self._expr(), tok)
 
-        self.expect(";")
+        self._expect(";")
         return node
 
-    def expr(self) -> Node:
+    def _expr(self) -> Node:
         """Parses an expression.
 
         ## Grammar:
@@ -405,9 +410,9 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        return self.assign()
+        return self._assign()
 
-    def assign(self) -> Node:
+    def _assign(self) -> Node:
         """Parses an assignment expression.
 
         ## Grammar:
@@ -418,15 +423,15 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        node = self.equality()
+        node = self._equality()
 
-        if equal(self.tokens[0], "="):
-            tok = self.tokens.popleft()
-            node = newBinary(NodeKind.ASSIGN, node, self.assign(), tok)
+        if equal(self._tokens[0], "="):
+            tok = self._tokens.popleft()
+            node = newBinary(NodeKind.ASSIGN, node, self._assign(), tok)
 
         return node
 
-    def equality(self) -> Node:
+    def _equality(self) -> Node:
         """Parses an equality expression.
 
         ## Grammar:
@@ -437,24 +442,24 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        node = self.relational()
+        node = self._relational()
 
         while True:
-            start = self.tokens[0]
+            start = self._tokens[0]
 
-            if equal(self.tokens[0], "=="):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.EQ, node, self.relational(), start)
+            if equal(self._tokens[0], "=="):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.EQ, node, self._relational(), start)
                 continue
 
-            if equal(self.tokens[0], "!="):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.NE, node, self.relational(), start)
+            if equal(self._tokens[0], "!="):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.NE, node, self._relational(), start)
                 continue
 
             return node
 
-    def relational(self) -> Node:
+    def _relational(self) -> Node:
         """Parses a relational expression.
 
         ## Grammar:
@@ -465,34 +470,34 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        node = self.add()
+        node = self._add()
 
         while True:
-            start = self.tokens[0]
+            start = self._tokens[0]
 
-            if equal(self.tokens[0], "<"):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.LT, node, self.add(), start)
+            if equal(self._tokens[0], "<"):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.LT, node, self._add(), start)
                 continue
 
-            if equal(self.tokens[0], "<="):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.LE, node, self.add(), start)
+            if equal(self._tokens[0], "<="):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.LE, node, self._add(), start)
                 continue
 
-            if equal(self.tokens[0], ">"):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.LT, self.add(), node, start)
+            if equal(self._tokens[0], ">"):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.LT, self._add(), node, start)
                 continue
 
-            if equal(self.tokens[0], ">="):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.LE, self.add(), node, start)
+            if equal(self._tokens[0], ">="):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.LE, self._add(), node, start)
                 continue
 
             return node
 
-    def add(self) -> Node:
+    def _add(self) -> Node:
         """Parses an addition or subtraction expression.
 
         ## Grammar:
@@ -503,24 +508,24 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        node = self.mul()
+        node = self._mul()
 
         while True:
-            start = self.tokens[0]
+            start = self._tokens[0]
 
-            if equal(self.tokens[0], "+"):
-                self.tokens.popleft()
-                node = newAdd(node, self.mul(), start, self.errorReporter)
+            if equal(self._tokens[0], "+"):
+                self._tokens.popleft()
+                node = newAdd(node, self._mul(), start, self._errorReporter)
                 continue
 
-            if equal(self.tokens[0], "-"):
-                self.tokens.popleft()
-                node = newSub(node, self.mul(), start, self.errorReporter)
+            if equal(self._tokens[0], "-"):
+                self._tokens.popleft()
+                node = newSub(node, self._mul(), start, self._errorReporter)
                 continue
 
             return node
 
-    def mul(self) -> Node:
+    def _mul(self) -> Node:
         """Parses a multiplication or division expression.
 
         ## Grammar:
@@ -531,24 +536,24 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        node = self.unary()
+        node = self._unary()
 
         while True:
-            start = self.tokens[0]
+            start = self._tokens[0]
 
-            if equal(self.tokens[0], "*"):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.MUL, node, self.unary(), start)
+            if equal(self._tokens[0], "*"):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.MUL, node, self._unary(), start)
                 continue
 
-            if equal(self.tokens[0], "/"):
-                self.tokens.popleft()
-                node = newBinary(NodeKind.DIV, node, self.unary(), start)
+            if equal(self._tokens[0], "/"):
+                self._tokens.popleft()
+                node = newBinary(NodeKind.DIV, node, self._unary(), start)
                 continue
 
             return node
 
-    def unary(self) -> Node:
+    def _unary(self) -> Node:
         """Parses a unary expression.
 
         ## Grammar:
@@ -560,25 +565,25 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        if equal(self.tokens[0], "+"):
-            self.tokens.popleft()
-            return self.unary()
+        if equal(self._tokens[0], "+"):
+            self._tokens.popleft()
+            return self._unary()
 
-        if equal(self.tokens[0], "-"):
-            tok = self.tokens.popleft()
-            return newUnary(NodeKind.NEG, self.unary(), tok)
+        if equal(self._tokens[0], "-"):
+            tok = self._tokens.popleft()
+            return newUnary(NodeKind.NEG, self._unary(), tok)
 
-        if equal(self.tokens[0], "&"):
-            tok = self.tokens.popleft()
-            return newUnary(NodeKind.ADDR, self.unary(), tok)
+        if equal(self._tokens[0], "&"):
+            tok = self._tokens.popleft()
+            return newUnary(NodeKind.ADDR, self._unary(), tok)
 
-        if equal(self.tokens[0], "*"):
-            tok = self.tokens.popleft()
-            return newUnary(NodeKind.DEREF, self.unary(), tok)
+        if equal(self._tokens[0], "*"):
+            tok = self._tokens.popleft()
+            return newUnary(NodeKind.DEREF, self._unary(), tok)
 
-        return self.primary()
+        return self._primary()
 
-    def newLVar(self, name: str, dtype: Dtype) -> Obj:
+    def _newLVar(self, name: str, dtype: Dtype) -> Obj:
         """Creates a new local variable and registers it in scope.
 
         Args:
@@ -589,10 +594,10 @@ class Parser:
             Obj: The newly created variable.
         """
         var = Obj(name=name, dtype=dtype)
-        self.locals.append(var)
+        self._locals.append(var)
         return var
 
-    def funcall(self) -> Node:
+    def _funcall(self) -> Node:
         """Parses a function call.
 
         ## Grammar:
@@ -603,22 +608,22 @@ class Parser:
         Returns:
             Node: The parsed function call.
         """
-        start = self.tokens.popleft()  # identifier
-        self.expect("(")
+        start = self._tokens.popleft()  # identifier
+        self._expect("(")
 
         args: list[Node] = []
 
-        while not equal(self.tokens[0], ")"):
+        while not equal(self._tokens[0], ")"):
             if args:
-                self.expect(",")
+                self._expect(",")
 
-            args.append(self.assign())
+            args.append(self._assign())
 
-        self.expect(")")
+        self._expect(")")
 
         return newFuncall(start.loc, args, start)
 
-    def primary(self) -> Node:
+    def _primary(self) -> Node:
         """Parses a primary expression.
 
         ## Grammar:
@@ -633,44 +638,44 @@ class Parser:
         Raises:
             SystemExit: If no valid primary expression is found.
         """
-        if equal(self.tokens[0], "("):
-            self.tokens.popleft()
-            node = self.expr()
-            self.expect(")")
+        if equal(self._tokens[0], "("):
+            self._tokens.popleft()
+            node = self._expr()
+            self._expect(")")
             return node
 
-        tok = self.tokens[0]
+        tok = self._tokens[0]
 
         if tok.kind == TokenKind.IDENT:
             # Function call
-            if len(self.tokens) > 1 and equal(self.tokens[1], "("):
-                return self.funcall()
+            if len(self._tokens) > 1 and equal(self._tokens[1], "("):
+                return self._funcall()
 
             # Variable
-            var = self.findVar(tok)
+            var = self._findVar(tok)
 
             if var is None:
-                self.errorReporter.errorTok(tok, "undefined variable")
+                self._errorReporter.errorTok(tok, "undefined variable")
 
-            self.tokens.popleft()
+            self._tokens.popleft()
             return newVarNode(var, tok)
 
         if tok.kind == TokenKind.NUM:
-            self.tokens.popleft()
+            self._tokens.popleft()
             return newNum(tok.val, tok)
 
-        self.errorReporter.errorTok(tok, "expected an expression")
+        self._errorReporter.errorTok(tok, "expected an expression")
 
-    def createParamLVars(self, params: list[Dtype]) -> None:
+    def _createParamLVars(self, params: list[Dtype]) -> None:
         """Creates local variables for function parameters.
 
         Args:
             params (list[Dtype]): The function parameter types.
         """
         for param in params:
-            self.newLVar(getIdent(param.name, self.errorReporter), param)
+            self._newLVar(_getIdent(param.name, self._errorReporter), param)
 
-    def function(self) -> Function:
+    def _function(self) -> Function:
         """Parses a function definition.
 
         ## Grammar:
@@ -681,20 +686,20 @@ class Parser:
         Returns:
             Function: The parsed function.
         """
-        dtype = self.declspec()
-        dtype = self.declarator(dtype)
+        dtype = self._declspec()
+        dtype = self._declarator(dtype)
 
         # Each function has its own local symbol table.
-        self.locals.clear()
+        self._locals.clear()
 
-        fn = Function(name=getIdent(dtype.name, self.errorReporter))
-        self.createParamLVars(dtype.params)
-        fn.params = self.locals.copy()
+        fn = Function(name=_getIdent(dtype.name, self._errorReporter))
+        self._createParamLVars(dtype.params)
+        fn.params = self._locals.copy()
 
-        tok = self.tokens[0]
-        self.expect("{")
-        fn.body = self.compoundStmt(tok)
-        fn.locals = self.locals.copy()
+        tok = self._tokens[0]
+        self._expect("{")
+        fn.body = self._compoundStmt(tok)
+        fn.locals = self._locals.copy()
 
         return fn
 
@@ -711,7 +716,7 @@ class Parser:
         """
         functions: list[Function] = []
 
-        while self.tokens[0].kind != TokenKind.EOF:
-            functions.append(self.function())
+        while self._tokens[0].kind != TokenKind.EOF:
+            functions.append(self._function())
 
         return functions

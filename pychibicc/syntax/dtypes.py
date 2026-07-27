@@ -4,8 +4,8 @@ from copy import copy
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
-from cint import CInt
-from tokens import Token
+from pychibicc.ctype.cint import CInt
+from pychibicc.frontend.tokens import Token
 
 
 class DtypeKind(Enum):

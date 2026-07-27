@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 
-from cint import CInt
-from nodes import Node
-from objects import Obj
+from pychibicc.ctype.cint import CInt
+from pychibicc.syntax.nodes import Node
+from pychibicc.syntax.objects import Obj
 
 
 @dataclass

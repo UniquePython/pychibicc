@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from cint import CInt
+from pychibicc.ctype.cint import CInt
 
 
 class Syntax(StrEnum):
@@ -20,7 +20,7 @@ class AsmWriter:
             syntax (Syntax): Assembly syntax to emit, either `Syntax.ATT` (default) or `Syntax.INTEL`.
         """
         self.syntax = syntax
-        self.code: list[str] = []
+        self._code: list[str] = []
 
     def mem(self, base: str, disp: CInt = 0) -> str:
         """Formats a memory operand: dereference `base`, optionally offset by `disp` bytes.
@@ -72,7 +72,7 @@ class AsmWriter:
             mnemonic (str): The instruction mnemonic.
             operand (str): The already-formatted operand.
         """
-        self.code.append(f"\t{mnemonic} {operand}")
+        self._code.append(f"\t{mnemonic} {operand}")
 
     def emit2(self, mnemonic: str, src: str, dst: str) -> None:
         """Emits a two-operand instruction, accounting for syntax operand order.
@@ -83,9 +83,9 @@ class AsmWriter:
             dst (str): The already-formatted destination operand (AT&T order).
         """
         if self.syntax == Syntax.ATT:
-            self.code.append(f"\t{mnemonic} {src}, {dst}")
+            self._code.append(f"\t{mnemonic} {src}, {dst}")
         else:
-            self.code.append(f"\t{mnemonic} {dst}, {src}")
+            self._code.append(f"\t{mnemonic} {dst}, {src}")
 
     def emit0(self, mnemonic: str) -> None:
         """Emits a zero-operand instruction.
@@ -93,7 +93,7 @@ class AsmWriter:
         Args:
             mnemonic (str): The instruction mnemonic.
         """
-        self.code.append(f"\t{mnemonic}")
+        self._code.append(f"\t{mnemonic}")
 
     def label(self, name: str) -> str:
         """Formats a compiler-generated label.
@@ -113,7 +113,7 @@ class AsmWriter:
             name (str): The label name without a leading `.`.
         """
         self.empty()
-        self.code.append(f"{self.label(name)}:")
+        self._code.append(f"{self.label(name)}:")
 
     def commentLast(self, text: str) -> None:
         """Appends a trailing comment to the most recently emitted line.
@@ -121,7 +121,7 @@ class AsmWriter:
         Args:
             text (str): The comment text (no leading '#').
         """
-        self.code[-1] += f"\t# {text}"
+        self._code[-1] += f"\t# {text}"
 
     def comment(self, text: str) -> None:
         """Appends a standalone comment line.
@@ -129,11 +129,11 @@ class AsmWriter:
         Args:
             text (str): The comment text (no leading '#').
         """
-        self.code.append(f"\t# {text}")
+        self._code.append(f"\t# {text}")
 
     def empty(self) -> None:
         """Appends an empty line."""
-        self.code.append("")
+        self._code.append("")
 
     def directive(self, text: str) -> None:
         """Appends a raw, tab-indented assembler directive line.
@@ -141,7 +141,7 @@ class AsmWriter:
         Args:
             text (str): The directive text, e.g. ".globl main".
         """
-        self.code.append(f"\t{text}")
+        self._code.append(f"\t{text}")
 
     def raw(self, text: str) -> None:
         """Appends a raw, unindented line, e.g. a bare label like "main:".
@@ -149,7 +149,7 @@ class AsmWriter:
         Args:
             text (str): The raw line text.
         """
-        self.code.append(text)
+        self._code.append(text)
 
     def getValue(self) -> str:
         """Returns the accumulated assembly text.
@@ -157,4 +157,4 @@ class AsmWriter:
         Returns:
             str: The full assembly source generated so far, newline-joined.
         """
-        return "\n".join(self.code)
+        return "\n".join(self._code)

@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
-from cint import CInt
-from dtypes import Dtype, DtypeKind, dtypeInt, pointerTo
-from error_reporter import ErrorReporter
-from objects import Obj
-from tokens import Token
+from pychibicc.ctype.cint import CInt
+from pychibicc.diagnostics.error_reporter import ErrorReporter
+from pychibicc.frontend.tokens import Token
+from pychibicc.syntax.dtypes import Dtype, DtypeKind, dtypeInt, pointerTo
+from pychibicc.syntax.objects import Obj
 
 
 class NodeKind(Enum):
