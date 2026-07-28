@@ -1,5 +1,6 @@
 test:
-	./test.sh
+	chmod +x ./tests/test_runner.py
+	./tests/test_runner.py --full
 
 clean:
 	rm -f *.o *~ tmp*
