@@ -152,7 +152,7 @@ def formatDtype(dtype: Dtype) -> str:
 
     def declarator(dtype: Dtype) -> str:
         match dtype.kind:
-            case DtypeKind.INT:
+            case DtypeKind.CHAR | DtypeKind.INT:
                 return _PLACEHOLDER
 
             case DtypeKind.PTR:
@@ -184,6 +184,9 @@ def formatDtype(dtype: Dtype) -> str:
 
     def baseTypeName(dtype: Dtype) -> str:
         match dtype.kind:
+            case DtypeKind.CHAR:
+                return "char"
+
             case DtypeKind.INT:
                 return "int"
 

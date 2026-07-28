@@ -11,6 +11,7 @@ from pychibicc.frontend.tokens import Token
 class DtypeKind(Enum):
     """Represents the different kinds of types."""
 
+    CHAR = auto()
     INT = auto()
     PTR = auto()
     FUNC = auto()
@@ -45,6 +46,7 @@ class Dtype:
     params: list[Dtype] = field(default_factory=list)
 
 
+dtypeChar = Dtype(kind=DtypeKind.CHAR, size=1)
 dtypeInt = Dtype(kind=DtypeKind.INT, size=8)
 
 
@@ -57,7 +59,7 @@ def isInteger(dtype: Dtype) -> bool:
     Returns:
         bool: True if the type is an integer, otherwise False.
     """
-    return dtype.kind == DtypeKind.INT
+    return dtype.kind == DtypeKind.INT or dtype.kind == DtypeKind.CHAR
 
 
 def copyType(dtype: Dtype) -> Dtype:

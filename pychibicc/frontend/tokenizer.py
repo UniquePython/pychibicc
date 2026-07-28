@@ -16,6 +16,18 @@ def equal(tok: Token, op: str) -> bool:
     return tok.loc == op
 
 
+def isTypename(tok: Token) -> bool:
+    """Returns whether the given token is a type name or not.
+
+    Args:
+        tok (Token): The token to compare.
+
+    Returns:
+        bool: True if the token exactly matches a type name, otherwise False.
+    """
+    return equal(tok, "char") or equal(tok, "int")
+
+
 def _isIdentFirst(c: str) -> bool:
     """Returns whether the character is valid as the first character of an identifier.
 
@@ -60,7 +72,7 @@ def _readPunct(source: str) -> CInt:
     return 0
 
 
-_KEYWORDS = {"return", "if", "else", "for", "while", "int", "sizeof"}
+_KEYWORDS = {"return", "if", "else", "for", "while", "int", "sizeof", "char"}
 
 
 def _isKeyword(tok: Token) -> bool:

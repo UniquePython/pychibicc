@@ -2,13 +2,14 @@ from collections import deque
 
 from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.frontend.tokenizer import equal
+from pychibicc.frontend.tokenizer import equal, isTypename
 from pychibicc.frontend.tokens import Token, TokenKind
 from pychibicc.syntax.dtypes import (
     Dtype,
     DtypeKind,
     arrayOf,
     copyType,
+    dtypeChar,
     dtypeInt,
     funcType,
     pointerTo,
@@ -134,12 +135,15 @@ class Parser:
 
         ## Grammar:
             ```
-            declspec = "int"
+            declspec = "char" | "int"
             ```
 
         Returns:
-            Type: The parsed type.
+            Dtype: The parsed type.
         """
+        if self._consume("char"):
+            return dtypeChar
+
         self._expect("int")
         return dtypeInt
 
@@ -371,7 +375,7 @@ class Parser:
         body: list[Node] = []
 
         while not equal(self._tokens[0], "}"):
-            if equal(self._tokens[0], "int"):
+            if isTypename(self._tokens[0]):
                 node = self._declaration()
             else:
                 node = self._stmt()

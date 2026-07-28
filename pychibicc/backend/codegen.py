@@ -38,7 +38,8 @@ def _assignLVarOffsets(program: list[Obj]) -> None:
         function.stackSize = _alignTo(offset, 16)
 
 
-_ARG_REGS = ("rdi", "rsi", "rdx", "rcx", "r8", "r9")
+_ARG_REGS_8 = ("dil", "sil", "dl", "cl", "r8b", "r9b")
+_ARG_REGS_64 = ("rdi", "rsi", "rdx", "rcx", "r8", "r9")
 
 
 class CodeGenerator:
@@ -97,12 +98,23 @@ class CodeGenerator:
             # implementing array-to-pointer decay.
             return
 
-        self._w.emit2("mov", self._w.mem("rax"), self._w.reg("rax"))
+        if dtype.size == 1:
+            self._w.emit2("movsbq", self._w.mem("rax"), self._w.reg("rax"))
+        else:
+            self._w.emit2("mov", self._w.mem("rax"), self._w.reg("rax"))
 
-    def _store(self) -> None:
-        """Stores %rax into the address at the top of the stack."""
+    def _store(self, dtype: Dtype) -> None:
+        """Stores %rax into the address at the top of the stack.
+
+        Args:
+            dtype (Dtype): The type of the value pointed to by %rax.
+        """
         self._pop("rdi")
-        self._w.emit2("mov", self._w.reg("rax"), self._w.mem("rdi"))
+
+        if dtype.size == 1:
+            self._w.emit2("mov", self._w.reg("al"), self._w.mem("rdi"))
+        else:
+            self._w.emit2("mov", self._w.reg("rax"), self._w.mem("rdi"))
 
     def _genAddr(self, node: Node) -> None:
         """Generates the absolute address of the specified node.
@@ -178,7 +190,7 @@ class CodeGenerator:
 
                 self._genExpr(node.rhs)
 
-                self._store()
+                self._store(node.dtype)
                 self._w.commentLast(f"store into {formatNode(node.lhs)}")
                 return
 
@@ -191,7 +203,7 @@ class CodeGenerator:
                     self._push()
                     self._w.commentLast(f"arg {i}: {formatNode(arg)}")
 
-                for reg in reversed(_ARG_REGS[: len(node.args)]):
+                for reg in reversed(_ARG_REGS_64[: len(node.args)]):
                     self._pop(reg)
 
                 self._w.emit2("mov", self._w.imm(0), self._w.reg("rax"))
@@ -416,11 +428,18 @@ class CodeGenerator:
 
             # Save passed-by-register arguments to their stack slots.
             for i, var in enumerate(function.params):
-                self._w.emit2(
-                    "mov",
-                    self._w.reg(_ARG_REGS[i]),
-                    self._w.mem("rbp", var.offset),
-                )
+                if var.dtype.size == 1:
+                    self._w.emit2(
+                        "mov",
+                        self._w.reg(_ARG_REGS_8[i]),
+                        self._w.mem("rbp", var.offset),
+                    )
+                else:
+                    self._w.emit2(
+                        "mov",
+                        self._w.reg(_ARG_REGS_64[i]),
+                        self._w.mem("rbp", var.offset),
+                    )
                 self._w.commentLast(f"store parameter '{var.name}'")
 
             self._w.empty()
