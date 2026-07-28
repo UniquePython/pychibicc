@@ -70,7 +70,7 @@ class Node:
     val: CInt = 0  # Used if kind == NodeKind.NUM
 
 
-def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
+def addDtype(node: Node | None, errorReporter: ErrorReporter) -> None:
     """Annotates the AST with type information.
 
     Args:
@@ -80,19 +80,19 @@ def addType(node: Node | None, errorReporter: ErrorReporter) -> None:
     if node is None or node.dtype is not None:
         return
 
-    addType(node.lhs, errorReporter)
-    addType(node.rhs, errorReporter)
-    addType(node.cond, errorReporter)
-    addType(node.then, errorReporter)
-    addType(node.els, errorReporter)
-    addType(node.init, errorReporter)
-    addType(node.inc, errorReporter)
+    addDtype(node.lhs, errorReporter)
+    addDtype(node.rhs, errorReporter)
+    addDtype(node.cond, errorReporter)
+    addDtype(node.then, errorReporter)
+    addDtype(node.els, errorReporter)
+    addDtype(node.init, errorReporter)
+    addDtype(node.inc, errorReporter)
 
     for stmt in node.body:
-        addType(stmt, errorReporter)
+        addDtype(stmt, errorReporter)
 
     for arg in node.args:
-        addType(arg, errorReporter)
+        addDtype(arg, errorReporter)
 
     from pychibicc.syntax.formatting import formatNode
 

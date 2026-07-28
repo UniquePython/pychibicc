@@ -2,7 +2,7 @@ from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
 from pychibicc.frontend.tokens import Token
 from pychibicc.syntax.dtypes import dtypeInt, isInteger
-from pychibicc.syntax.nodes import Node, NodeKind, addType
+from pychibicc.syntax.nodes import Node, NodeKind, addDtype
 from pychibicc.syntax.objects import Obj
 
 
@@ -113,8 +113,8 @@ def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
     Returns:
         Node: The newly created node.
     """
-    addType(lhs, errorReporter)
-    addType(rhs, errorReporter)
+    addDtype(lhs, errorReporter)
+    addDtype(rhs, errorReporter)
 
     # num + num
     if isInteger(lhs.dtype) and isInteger(rhs.dtype):
@@ -129,7 +129,7 @@ def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
 
     # ptr + num
     rhs = newBinary(NodeKind.MUL, rhs, newNum(lhs.dtype.base.size, tok), tok)
-    addType(rhs, errorReporter)
+    addDtype(rhs, errorReporter)
 
     return newBinary(NodeKind.ADD, lhs, rhs, tok)
 
@@ -146,8 +146,8 @@ def newSub(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
     Returns:
         Node: The newly created node.
     """
-    addType(lhs, errorReporter)
-    addType(rhs, errorReporter)
+    addDtype(lhs, errorReporter)
+    addDtype(rhs, errorReporter)
 
     # num - num
     if isInteger(lhs.dtype) and isInteger(rhs.dtype):
@@ -156,7 +156,7 @@ def newSub(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
     # ptr - num
     if lhs.dtype.base is not None and isInteger(rhs.dtype):
         rhs = newBinary(NodeKind.MUL, rhs, newNum(lhs.dtype.base.size, tok), tok)
-        addType(rhs, errorReporter)
+        addDtype(rhs, errorReporter)
 
         node = newBinary(NodeKind.SUB, lhs, rhs, tok)
         node.dtype = lhs.dtype

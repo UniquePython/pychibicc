@@ -25,7 +25,7 @@ from pychibicc.syntax.node_constructors import (
     newUnary,
     newVarNode,
 )
-from pychibicc.syntax.nodes import Node, NodeKind, addType
+from pychibicc.syntax.nodes import Node, NodeKind, addDtype
 from pychibicc.syntax.objects import Obj
 
 
@@ -382,7 +382,7 @@ class Parser:
             else:
                 node = self._stmt()
 
-            addType(node, self._errorReporter)
+            addDtype(node, self._errorReporter)
             body.append(node)
 
         self._expect("}")
@@ -749,7 +749,7 @@ class Parser:
             tok = self._tokens.popleft()
 
             node = self._unary()
-            addType(node, self._errorReporter)
+            addDtype(node, self._errorReporter)
 
             return newNum(node.dtype.size, tok)
 
