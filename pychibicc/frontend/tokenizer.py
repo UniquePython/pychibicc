@@ -73,27 +73,6 @@ def _readPunct(source: str) -> CInt:
     return 0
 
 
-def _readEscapedChar(c: str) -> str:
-    """Returns the character represented by an escape sequence.
-
-    Args:
-        c (str): The character following the backslash.
-
-    Returns:
-        str: The decoded character.
-    """
-    return {
-        "a": "\a",
-        "b": "\b",
-        "t": "\t",
-        "n": "\n",
-        "v": "\v",
-        "f": "\f",
-        "r": "\r",
-        "e": chr(27),  # GNU extension
-    }.get(c, c)
-
-
 _KEYWORDS = {"return", "if", "else", "for", "while", "int", "sizeof", "char"}
 
 
@@ -134,6 +113,43 @@ class Tokenizer:
         """
         self._errorReporter = errorReporter
         self._source = self._errorReporter.source
+
+    def _readEscapedChar(self, idx: int) -> tuple[str, int]:
+        """Reads an escaped character.
+
+        Args:
+            idx (int): Index of the character immediately following the backslash.
+
+        Returns:
+            tuple[str, int]: The decoded character and the index of the next unread character.
+        """
+        # Octal escape sequence.
+        if "0" <= self._source[idx] <= "7":
+            c = ord(self._source[idx]) - ord("0")
+            idx += 1
+
+            if idx < len(self._source) and "0" <= self._source[idx] <= "7":
+                c = (c << 3) + (ord(self._source[idx]) - ord("0"))
+                idx += 1
+
+                if idx < len(self._source) and "0" <= self._source[idx] <= "7":
+                    c = (c << 3) + (ord(self._source[idx]) - ord("0"))
+                    idx += 1
+
+            return chr(c), idx
+
+        escaped = {
+            "a": "\a",
+            "b": "\b",
+            "t": "\t",
+            "n": "\n",
+            "v": "\v",
+            "f": "\f",
+            "r": "\r",
+            "e": chr(27),  # GNU extension
+        }.get(self._source[idx], self._source[idx])
+
+        return escaped, idx + 1
 
     def _stringLiteralEnd(self, start: int) -> int:
         """Finds the closing double quote of a string literal.
@@ -184,8 +200,8 @@ class Tokenizer:
 
         while idx < end:
             if self._source[idx] == "\\":
-                chars.append(_readEscapedChar(self._source[idx + 1]))
-                idx += 2
+                ch, idx = self._readEscapedChar(idx + 1)
+                chars.append(ch)
             else:
                 chars.append(self._source[idx])
                 idx += 1
