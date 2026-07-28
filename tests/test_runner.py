@@ -22,9 +22,9 @@ on multi-core machines.
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
@@ -41,6 +41,7 @@ from pychibicc.frontend.tokenizer import Tokenizer
 from pychibicc.parser.parser import Parser
 
 TESTS_FILE = SCRIPT_DIR / "list.tests"
+BUILD_DIR = REPO_ROOT / "build"
 
 # Helper functions test cases call into.
 HELPER_SRC = """
@@ -122,7 +123,7 @@ def run_case(
             index, syntax_name, source, expected, None, False, f"compile error: {e}"
         )
 
-    work = Path(build_dir) / f"{syntax_name}_{index}"
+    work = Path(build_dir) / syntax_name / str(index)
     asm_path = work.with_suffix(".s")
     bin_path = work
     asm_path.write_text(asm)
@@ -177,24 +178,30 @@ def main() -> int:
     cases = load_cases(Path(args.tests_file))
     syntaxes = ["att", "intel"] if args.full else ["att"]
 
-    with tempfile.TemporaryDirectory() as build_dir:
-        helper_obj = str(Path(build_dir) / "helpers.o")
-        subprocess.run(
-            ["gcc", "-xc", "-c", "-o", helper_obj, "-"],
-            input=HELPER_SRC,
-            text=True,
-            check=True,
-        )
+    # Wipe any previous run's output so stale files (e.g. from an older,
+    # differently-ordered list.tests) can never be mistaken for fresh ones.
+    shutil.rmtree(BUILD_DIR, ignore_errors=True)
+    build_dir = str(BUILD_DIR)
+    for syntax in syntaxes:
+        (BUILD_DIR / syntax).mkdir(parents=True, exist_ok=True)
 
-        t0 = time.perf_counter()
-        with ProcessPoolExecutor(max_workers=args.jobs) as pool:
-            futures = [
-                pool.submit(run_case, i, src, expected, syntax, helper_obj, build_dir)
-                for i, (expected, src) in enumerate(cases, start=1)
-                for syntax in syntaxes
-            ]
-            results = [f.result() for f in futures]
-        elapsed = time.perf_counter() - t0
+    helper_obj = str(BUILD_DIR / "helpers.o")
+    subprocess.run(
+        ["gcc", "-xc", "-c", "-o", helper_obj, "-"],
+        input=HELPER_SRC,
+        text=True,
+        check=True,
+    )
+
+    t0 = time.perf_counter()
+    with ProcessPoolExecutor(max_workers=args.jobs) as pool:
+        futures = [
+            pool.submit(run_case, i, src, expected, syntax, helper_obj, build_dir)
+            for i, (expected, src) in enumerate(cases, start=1)
+            for syntax in syntaxes
+        ]
+        results = [f.result() for f in futures]
+    elapsed = time.perf_counter() - t0
 
     results.sort(key=lambda r: (r.index, r.syntax))
     failures = [r for r in results if not r.ok]
