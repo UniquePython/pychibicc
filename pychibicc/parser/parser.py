@@ -299,6 +299,7 @@ class Parser:
                 | "if" "(" expr ")" stmt ("else" stmt)?
                 | "for" "(" expr-stmt expr? ";" expr? ")" stmt
                 | "while" "(" expr ")" stmt
+                | "forever" stmt
                 | "{" compound-stmt
                 | expr-stmt
             ```
@@ -361,6 +362,14 @@ class Parser:
             self._expect(")")
 
             node.then = self._stmt()
+            return node
+
+        if equal(self._tokens[0], "forever"):
+            tok = self._tokens.popleft()
+
+            node = newNode(NodeKind.FOR, tok)
+            node.then = self._stmt()
+
             return node
 
         if equal(self._tokens[0], "{"):
