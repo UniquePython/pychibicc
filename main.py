@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import argparse
 import sys
+from typing import TextIO
 
 from pychibicc.backend.asm_writer import AsmWriter, Syntax
 from pychibicc.backend.codegen import CodeGenerator
@@ -8,29 +11,30 @@ from pychibicc.frontend.tokenizer import Tokenizer
 from pychibicc.parser.parser import Parser
 
 
-def readFile(path: str) -> str:
-    """Reads the contents of a source file, or stdin if `path` is "-".
+def read_file(path: str) -> str:
+    """Read the contents of a source file.
 
-    By convention, a path of "-" means"read from stdin" instead of
-    opening a real file. The returned text is guaranteed to end with a
-    newline, since the rest of the pipeline (in particular error reporting,
-    which scans forward from a positionto the next newline) assumes every
-    line is newline-terminated.
+    A path of "-" is treated specially and causes input to be read
+    from stdin. The returned source is guaranteed to end with a newline,
+    as later compiler stages assume every line is newline-terminated.
 
     Args:
-        path (str): Path to the source file to read, or "-" for stdin.
+        path: Path to the source file, or "-" to read from stdin.
 
     Returns:
-        str: The file's contents, guaranteed to end with "\\n".
+        The contents of the source file with a trailing newline.
+
+    Raises:
+        SystemExit: If the file cannot be opened.
     """
     if path == "-":
         content = sys.stdin.read()
     else:
         try:
-            with open(path, encoding="utf-8") as f:
-                content = f.read()
-        except OSError as e:
-            ErrorReporter.error(f"cannot open {path}: {e.strerror}")
+            with open(path, encoding="utf-8") as file:
+                content = file.read()
+        except OSError as error:
+            ErrorReporter.error(f"cannot open input file: {path}: {error.strerror}")
 
     if not content.endswith("\n"):
         content += "\n"
@@ -38,12 +42,51 @@ def readFile(path: str) -> str:
     return content
 
 
+def open_file(path: str | None) -> TextIO:
+    """Open an output file.
+
+    A path of None or "-" writes output to stdout, matching the behavior
+    of chibicc's open_file() helper.
+
+    Args:
+        path: Output path, or None / "-" for stdout.
+
+    Returns:
+        A writable text stream.
+
+    Raises:
+        SystemExit: If the output file cannot be opened.
+    """
+    if path is None or path == "-":
+        return sys.stdout
+
+    try:
+        return open(path, "w", encoding="utf-8")
+    except OSError as error:
+        ErrorReporter.error(f"cannot open output file: {path}: {error.strerror}")
+
+
 def main() -> None:
+    """Compile a C source file into assembly.
+
+    The compilation pipeline follows the same stages as chibicc:
+
+    1. Read source file.
+    2. Tokenize source.
+    3. Parse tokens into an AST.
+    4. Traverse AST and emit assembly.
+    """
     cli = argparse.ArgumentParser(prog="pychibicc")
 
     cli.add_argument(
         "source",
-        help='Path to the C source file to compile, or "-" to read from stdin.',
+        help="C source file to compile, or '-' to read from stdin.",
+    )
+
+    cli.add_argument(
+        "-o",
+        metavar="path",
+        help="Write output to <path>.",
     )
 
     cli.add_argument(
@@ -57,26 +100,40 @@ def main() -> None:
 
     args = cli.parse_args()
 
-    path = args.source
-    syntax = args.syntax
+    source_path: str = args.source
+    output_path: str | None = args.o
+    syntax: Syntax = args.syntax
 
-    source = readFile(path)
-    filename = "<stdin>" if path == "-" else path
+    source: str = read_file(source_path)
 
-    errorReporter = ErrorReporter(source, filename)
+    filename: str = "<stdin>" if source_path == "-" else source_path
 
-    tokenizer = Tokenizer(errorReporter)
+    error_reporter = ErrorReporter(source, filename)
+
+    # Tokenize and parse.
+    tokenizer = Tokenizer(error_reporter)
     tokens = tokenizer.tokenize()
 
-    parser = Parser(errorReporter, tokens)
+    parser = Parser(error_reporter, tokens)
     program = parser.parse()
 
-    asmWriter = AsmWriter(syntax)
+    # Traverse the AST to emit assembly.
+    output = open_file(output_path)
 
-    codeGenerator = CodeGenerator(asmWriter, errorReporter)
-    code = codeGenerator.codegen(program)
+    try:
+        asm_writer = AsmWriter(syntax)
 
-    print(code)
+        code_generator = CodeGenerator(
+            asm_writer,
+            error_reporter,
+        )
+
+        assembly: str = code_generator.codegen(program)
+        output.write(assembly)
+
+    finally:
+        if output is not sys.stdout:
+            output.close()
 
 
 if __name__ == "__main__":
