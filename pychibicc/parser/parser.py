@@ -6,6 +6,7 @@ from pychibicc.frontend.tokenizer import equal
 from pychibicc.frontend.tokens import Token, TokenKind
 from pychibicc.syntax.dtypes import (
     Dtype,
+    DtypeKind,
     arrayOf,
     copyType,
     dtypeInt,
@@ -110,17 +111,21 @@ class Parser:
         return False
 
     def _findVar(self, tok: Token) -> Obj | None:
-        """Finds a local variable by name.
+        """Finds a local or global variable by name.
 
         Args:
             tok (Token): The identifier token to search for.
 
         Returns:
-            Obj | None: The matching local variable, or None if no match is found.
+            Obj | None: The matching local or global variable, or None if no match is found.
         """
-        for var in self._locals:
-            if var.name == tok.loc:
-                return var
+        for lvar in self._locals:
+            if lvar.name == tok.loc:
+                return lvar
+
+        for gvar in self._globals:
+            if gvar.name == tok.loc:
+                return gvar
 
         return None
 
@@ -770,6 +775,45 @@ class Parser:
 
         return fn
 
+    def _globalVariable(self, baseDtype: Dtype) -> None:
+        """Parses one or more global variable declarations.
+
+        ## Grammar:
+            ```
+            global-variable = declarator ("," declarator)* ";"
+            ```
+
+        Args:
+            baseDtype (Dtype): The base type of the declaration.
+        """
+        first = True
+
+        while not self._consume(";"):
+            if not first:
+                self._expect(",")
+
+            first = False
+
+            dtype = self._declarator(baseDtype)
+            self._newGVar(_getIdent(dtype.name, self._errorReporter), dtype)
+
+    def _isFunction(self) -> bool:
+        """Returns whether the upcoming declaration is a function.
+
+        Returns:
+            bool: True if the declaration is a function, False otherwise.
+        """
+        if equal(self._tokens[0], ";"):
+            return False
+
+        tokens = self._tokens.copy()
+
+        dummy = Dtype(kind=DtypeKind.INT)
+        dtype = self._declarator(dummy)
+
+        self._tokens = tokens
+        return dtype.kind == DtypeKind.FUNC
+
     def parse(self) -> list[Obj]:
         """Parses the token stream.
 
@@ -785,6 +829,13 @@ class Parser:
 
         while self._tokens[0].kind != TokenKind.EOF:
             baseType = self._declspec()
-            self._function(baseType)
+
+            # Function
+            if self._isFunction():
+                self._function(baseType)
+                continue
+
+            # Global variable
+            self._globalVariable(baseType)
 
         return self._globals

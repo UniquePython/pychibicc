@@ -71,7 +71,14 @@ class Node:
 
 
 def formatNode(node: Node | None) -> str:
-    """Returns a compact C-like representation of an AST node."""
+    """Formats an AST node as a compact C-like expression.
+
+    Args:
+        node (Node | None): The node to format.
+
+    Returns:
+        str: A compact C-like representation of the node.
+    """
 
     if node is None:
         return "<none>"
@@ -128,6 +135,69 @@ def formatNode(node: Node | None) -> str:
 
         case _:
             return f"<{node.kind.name}>"
+
+
+_PLACEHOLDER = "__T__"
+
+
+def formatDtype(dtype: Dtype) -> str:
+    """Formats a type as a valid C declaration.
+
+    Args:
+        dtype (Dtype): The type to format.
+
+    Returns:
+        str: A C declaration representing the type.
+    """
+
+    def declarator(dtype: Dtype) -> str:
+        match dtype.kind:
+            case DtypeKind.INT:
+                return _PLACEHOLDER
+
+            case DtypeKind.PTR:
+                decl = declarator(dtype.base)
+
+                # If the placeholder is immediately followed by a postfix
+                # operator, parenthesize before prepending '*'.
+                idx = decl.find(_PLACEHOLDER)
+                after = decl[idx + len(_PLACEHOLDER) :] if idx != -1 else ""
+
+                if after.startswith(("[", "(")):
+                    return decl.replace(_PLACEHOLDER, f"(*{_PLACEHOLDER})", 1)
+
+                return decl.replace(_PLACEHOLDER, f"*{_PLACEHOLDER}", 1)
+
+            case DtypeKind.ARRAY:
+                decl = declarator(dtype.base)
+                return decl.replace(
+                    _PLACEHOLDER, f"{_PLACEHOLDER}[{dtype.arrayLen}]", 1
+                )
+
+            case DtypeKind.FUNC:
+                decl = declarator(dtype.returnDtype)
+                params = ", ".join(formatDtype(param) for param in dtype.params)
+                return decl.replace(_PLACEHOLDER, f"{_PLACEHOLDER}({params})", 1)
+
+            case _:
+                return f"<{dtype.kind.name}>"
+
+    def baseTypeName(dtype: Dtype) -> str:
+        match dtype.kind:
+            case DtypeKind.INT:
+                return "int"
+
+            case DtypeKind.PTR | DtypeKind.ARRAY:
+                return baseTypeName(dtype.base)
+
+            case DtypeKind.FUNC:
+                return baseTypeName(dtype.returnDtype)
+
+            case _:
+                return "<unknown>"
+
+    decl = declarator(dtype)
+    return f"{baseTypeName(dtype)} {decl.replace(_PLACEHOLDER, '')}".rstrip()
 
 
 def addType(node: Node | None, errorReporter: ErrorReporter) -> None:

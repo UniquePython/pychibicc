@@ -22,26 +22,38 @@ class AsmWriter:
         self.syntax = syntax
         self._code: list[str] = []
 
-    def mem(self, base: str, disp: CInt = 0) -> str:
-        """Formats a memory operand: dereference `base`, optionally offset by `disp` bytes.
+    def mem(self, base: str, disp: CInt | str = 0) -> str:
+        """Formats a memory operand: dereference `base`, optionally offset by
+        `disp`.
+
+        `disp` may be either a byte displacement or a symbol name (e.g. for
+        RIP-relative addressing).
 
         Args:
-            base (str): The bare base register name (e.g. "rbp").
-            disp (CInt): Byte displacement, may be negative.
+            base (str): The bare base register name (e.g. "rbp" or "rip").
+            disp (CInt | str): Byte displacement or symbol name.
 
         Returns:
             str: The formatted memory operand for the current syntax.
         """
         if self.syntax == Syntax.ATT:
             reg = self.reg(base)
+
+            if isinstance(disp, str):
+                return f"{disp}({reg})"
+
             return f"{disp}({reg})" if disp else f"({reg})"
+
+        # Intel syntax
+        if isinstance(disp, str):
+            return f"[{base}+{disp}]"
+
+        if disp > 0:
+            return f"[{base}+{disp}]"
+        elif disp < 0:
+            return f"[{base}{disp}]"
         else:
-            if disp > 0:
-                return f"[{base}+{disp}]"
-            elif disp < 0:
-                return f"[{base}{disp}]"
-            else:
-                return f"[{base}]"
+            return f"[{base}]"
 
     def reg(self, name: str) -> str:
         """Formats a register operand for the current syntax.

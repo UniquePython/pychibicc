@@ -2,7 +2,7 @@ from pychibicc.backend.asm_writer import AsmWriter, Syntax
 from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
 from pychibicc.syntax.dtypes import Dtype, DtypeKind
-from pychibicc.syntax.nodes import Node, NodeKind, formatNode
+from pychibicc.syntax.nodes import Node, NodeKind, formatDtype, formatNode
 from pychibicc.syntax.objects import Obj
 
 
@@ -115,9 +115,16 @@ class CodeGenerator:
         """
         match node.kind:
             case NodeKind.VAR:
-                self._w.emit2(
-                    "lea", self._w.mem("rbp", node.var.offset), self._w.reg("rax")
-                )
+                if node.var.isLocal:
+                    # Local variable
+                    self._w.emit2(
+                        "lea", self._w.mem("rbp", node.var.offset), self._w.reg("rax")
+                    )
+                else:
+                    # Global variable
+                    self._w.emit2(
+                        "lea", self._w.mem("rip", node.var.name), self._w.reg("rax")
+                    )
                 return
 
             case NodeKind.DEREF:
@@ -329,20 +336,47 @@ class CodeGenerator:
 
         self._errorReporter.errorTok(node.tok, "internal error: invalid statement")
 
-    def codegen(self, program: list[Obj]) -> str:
-        """Generates assembly code for the specified program.
+    def _emitData(self, program: list[Obj]) -> None:
+        """Emits assembly for the program's global variables.
+
+        Global variables are placed in the data section, exported if
+        necessary, labeled, and allocated zero-initialized storage.
 
         Args:
-            program (list[Obj]): The program to generate code for.
-
-        Returns:
-            str: The generated assembly code.
+            program (list[Obj]): The program's global objects.
         """
-        _assignLVarOffsets(program)
+        for var in program:
+            if var.isFunction:
+                continue
 
-        if self._w.syntax == Syntax.INTEL:
-            self._w.directive(".intel_syntax noprefix")
+            self._w.comment(
+                "=========================================================="
+            )
+            self._w.comment(f"Global variable: {var.name}")
+            self._w.comment(f"Type: {formatDtype(var.dtype)}")
+            self._w.comment(f"Size: {var.dtype.size} bytes")
+            self._w.comment(
+                "=========================================================="
+            )
+            self._w.empty()
 
+            self._w.directive(".data")
+            self._w.directive(f".globl {var.name}")
+            self._w.raw(f"{var.name}:")
+            self._w.directive(f".zero {var.dtype.size}")
+            self._w.commentLast(f"reserve {var.dtype.size} bytes")
+            self._w.empty()
+
+    def _emitText(self, program: list[Obj]) -> None:
+        """Emits assembly for the program's functions.
+
+        Each function is emitted into the text section along with its
+        prologue, stack frame setup, parameter handling, body, and
+        epilogue.
+
+        Args:
+            program (list[Obj]): The program's global objects.
+        """
         for function in program:
             if not function.isFunction:
                 continue
@@ -383,7 +417,9 @@ class CodeGenerator:
             # Save passed-by-register arguments to their stack slots.
             for i, var in enumerate(function.params):
                 self._w.emit2(
-                    "mov", self._w.reg(_ARG_REGS[i]), self._w.mem("rbp", var.offset)
+                    "mov",
+                    self._w.reg(_ARG_REGS[i]),
+                    self._w.mem("rbp", var.offset),
                 )
                 self._w.commentLast(f"store parameter '{var.name}'")
 
@@ -406,5 +442,22 @@ class CodeGenerator:
             self._w.emit0("ret")
 
             self._w.empty()
+
+    def codegen(self, program: list[Obj]) -> str:
+        """Generates assembly code for the specified program.
+
+        Args:
+            program (list[Obj]): The program to generate code for.
+
+        Returns:
+            str: The generated assembly code.
+        """
+        _assignLVarOffsets(program)
+
+        if self._w.syntax == Syntax.INTEL:
+            self._w.directive(".intel_syntax noprefix")
+
+        self._emitData(program)
+        self._emitText(program)
 
         return self._w.getValue()
