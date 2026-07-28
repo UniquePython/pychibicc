@@ -55,6 +55,28 @@ def _isIdentNonFirst(c: str) -> bool:
     return _isIdentFirst(c) or ("0" <= c <= "9")
 
 
+def _fromHex(c: str) -> int:
+    """Converts a hexadecimal digit to its integer value.
+
+    Args:
+        c (str): A hexadecimal digit.
+
+    Returns:
+        int: The digit's value.
+    """
+    if "0" <= c <= "9":
+        return ord(c) - ord("0")
+
+    if "a" <= c <= "f":
+        return ord(c) - ord("a") + 10
+
+    return ord(c) - ord("A") + 10
+
+
+def _isHexDigit(c: str) -> bool:
+    return c.lower() in "0123456789abcdef"
+
+
 def _readPunct(source: str) -> CInt:
     """Reads a punctuator from the beginning of the string.
 
@@ -135,6 +157,21 @@ class Tokenizer:
                 if idx < len(self._source) and "0" <= self._source[idx] <= "7":
                     c = (c << 3) + (ord(self._source[idx]) - ord("0"))
                     idx += 1
+
+            return chr(c), idx
+
+        if self._source[idx] == "x":
+            # Read a hexadecimal number.
+            idx += 1
+
+            if idx >= len(self._source) or not _isHexDigit(self._source[idx]):
+                self._errorReporter.errorAt(idx, "invalid hex escape sequence")
+
+            c = 0
+
+            while idx < len(self._source) and _isHexDigit(self._source[idx]):
+                c = (c << 4) + _fromHex(self._source[idx])
+                idx += 1
 
             return chr(c), idx
 

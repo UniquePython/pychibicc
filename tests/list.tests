@@ -173,3 +173,7 @@
 16 int main() { return "\20"[0]; }
 65 int main() { return "\101"[0]; }
 104 int main() { return "\1500"[0]; }
+0 int main() { return "\x00"[0]; }
+119 int main() { return "\x77"[0]; }
+165 int main() { return "\xA5"[0]; }
+255 int main() { return "\x00ff"[0]; }
