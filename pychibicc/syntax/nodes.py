@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
@@ -7,7 +8,9 @@ from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
 from pychibicc.frontend.tokens import Token
 from pychibicc.syntax.dtypes import Dtype, DtypeKind, dtypeInt, pointerTo
-from pychibicc.syntax.objects import Obj
+
+if typing.TYPE_CHECKING:
+    from pychibicc.syntax.objects import Obj
 
 
 class NodeKind(Enum):

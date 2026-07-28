@@ -2,8 +2,8 @@ from pychibicc.backend.asm_writer import AsmWriter, Syntax
 from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
 from pychibicc.syntax.dtypes import Dtype, DtypeKind
-from pychibicc.syntax.functions import Function
 from pychibicc.syntax.nodes import Node, NodeKind, formatNode
+from pychibicc.syntax.objects import Obj
 
 
 def _alignTo(n: CInt, align: CInt) -> CInt:
@@ -19,13 +19,16 @@ def _alignTo(n: CInt, align: CInt) -> CInt:
     return (n + align - 1) // align * align
 
 
-def _assignLVarOffsets(functions: list[Function]) -> None:
+def _assignLVarOffsets(program: list[Obj]) -> None:
     """Assigns stack offsets to local variables.
 
     Args:
-        functions (list[Function]): The parsed functions.
+        program (list[Obj]): The global objects.
     """
-    for function in functions:
+    for function in program:
+        if not function.isFunction:
+            continue
+
         offset = 0
 
         for var in reversed(function.locals):
@@ -50,7 +53,7 @@ class CodeGenerator:
         """
         self._depth = 0
         self._labelCount = 1
-        self._currentFunction: Function | None = None
+        self._currentFunction: Obj | None = None
 
         self._w = asmWriter
         self._errorReporter = errorReporter
@@ -326,11 +329,11 @@ class CodeGenerator:
 
         self._errorReporter.errorTok(node.tok, "internal error: invalid statement")
 
-    def codegen(self, program: list[Function]) -> str:
+    def codegen(self, program: list[Obj]) -> str:
         """Generates assembly code for the specified program.
 
         Args:
-            program (list[Function]): The program to generate code for.
+            program (list[Obj]): The program to generate code for.
 
         Returns:
             str: The generated assembly code.
@@ -341,6 +344,9 @@ class CodeGenerator:
             self._w.directive(".intel_syntax noprefix")
 
         for function in program:
+            if not function.isFunction:
+                continue
+
             self._currentFunction = function
 
             self._w.empty()
@@ -355,6 +361,7 @@ class CodeGenerator:
             self._w.empty()
 
             self._w.directive(f".globl {function.name}")
+            self._w.directive(".text")
             self._w.raw(f"{function.name}:")
 
             # Prologue.

@@ -12,7 +12,6 @@ from pychibicc.syntax.dtypes import (
     funcType,
     pointerTo,
 )
-from pychibicc.syntax.functions import Function
 from pychibicc.syntax.node_constructors import (
     newAdd,
     newBinary,
@@ -79,6 +78,7 @@ class Parser:
         self._errorReporter = errorReporter
         self._tokens: deque[Token] = deque(tokens)
         self._locals: list[Obj] = []
+        self._globals: list[Obj] = []
 
     def _expect(self, s: str) -> None:
         """Consumes the current token if it matches the expected string.
@@ -612,8 +612,8 @@ class Parser:
 
         return node
 
-    def _newLVar(self, name: str, dtype: Dtype) -> Obj:
-        """Creates a new local variable and registers it in scope.
+    def _newVar(self, name: str, dtype: Dtype) -> Obj:
+        """Creates a new variable.
 
         Args:
             name (str): The variable's name.
@@ -622,8 +622,35 @@ class Parser:
         Returns:
             Obj: The newly created variable.
         """
-        var = Obj(name=name, dtype=dtype)
+        return Obj(name=name, dtype=dtype)
+
+    def _newLVar(self, name: str, dtype: Dtype) -> Obj:
+        """Creates a new local variable and registers it in scope.
+
+        Args:
+            name (str): The variable's name.
+            dtype (Dtype): The variable's datatype.
+
+        Returns:
+            Obj: The newly created local variable.
+        """
+        var = self._newVar(name, dtype)
+        var.isLocal = True
         self._locals.append(var)
+        return var
+
+    def _newGVar(self, name: str, dtype: Dtype) -> Obj:
+        """Creates a new global variable.
+
+        Args:
+            name (str): The variable's name.
+            dtype (Dtype): The variable's datatype.
+
+        Returns:
+            Obj: The newly created global variable.
+        """
+        var = self._newVar(name, dtype)
+        self._globals.append(var)
         return var
 
     def _funcall(self) -> Node:
@@ -711,24 +738,28 @@ class Parser:
         for param in params:
             self._newLVar(_getIdent(param.name, self._errorReporter), param)
 
-    def _function(self) -> Function:
+    def _function(self, baseDtype: Dtype) -> Obj:
         """Parses a function definition.
 
         ## Grammar:
             ```
-            function-definition = declspec declarator compound-stmt
+            function-definition = declarator compound-stmt
             ```
 
+        Args:
+            baseDtype (Dtype): The function's base type.
+
         Returns:
-            Function: The parsed function.
+            Obj: The parsed function.
         """
-        dtype = self._declspec()
-        dtype = self._declarator(dtype)
+        dtype = self._declarator(baseDtype)
+
+        fn = self._newGVar(_getIdent(dtype.name, self._errorReporter), dtype)
+        fn.isFunction = True
 
         # Each function has its own local symbol table.
         self._locals.clear()
 
-        fn = Function(name=_getIdent(dtype.name, self._errorReporter))
         self._createParamLVars(dtype.params)
         fn.params = self._locals.copy()
 
@@ -739,20 +770,21 @@ class Parser:
 
         return fn
 
-    def parse(self) -> list[Function]:
+    def parse(self) -> list[Obj]:
         """Parses the token stream.
 
         ## Grammar:
             ```
-            program = function-definition*
+            program = (function-definition | global-variable)*
             ```
 
         Returns:
-            list[Function]: The parsed functions.
+            list[Obj]: The parsed global objects.
         """
-        functions: list[Function] = []
+        self._globals.clear()
 
         while self._tokens[0].kind != TokenKind.EOF:
-            functions.append(self._function())
+            baseType = self._declspec()
+            self._function(baseType)
 
-        return functions
+        return self._globals
