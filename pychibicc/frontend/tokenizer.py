@@ -73,6 +73,27 @@ def _readPunct(source: str) -> CInt:
     return 0
 
 
+def _readEscapedChar(c: str) -> str:
+    """Returns the character represented by an escape sequence.
+
+    Args:
+        c (str): The character following the backslash.
+
+    Returns:
+        str: The decoded character.
+    """
+    return {
+        "a": "\a",
+        "b": "\b",
+        "t": "\t",
+        "n": "\n",
+        "v": "\v",
+        "f": "\f",
+        "r": "\r",
+        "e": chr(27),  # GNU extension
+    }.get(c, c)
+
+
 _KEYWORDS = {"return", "if", "else", "for", "while", "int", "sizeof", "char"}
 
 
@@ -114,6 +135,37 @@ class Tokenizer:
         self._errorReporter = errorReporter
         self._source = self._errorReporter.source
 
+    def _stringLiteralEnd(self, start: int) -> int:
+        """Finds the closing double quote of a string literal.
+
+        Args:
+            start (int): Index immediately after the opening quote.
+
+        Returns:
+            int: Index of the closing quote.
+
+        Raises:
+            SystemExit: If the string literal is unterminated.
+        """
+        idx = start
+
+        while idx < len(self._source):
+            if self._source[idx] == '"':
+                return idx
+
+            if self._source[idx] == "\n":
+                self._errorReporter.errorAt(start - 1, "unclosed string literal")
+
+            if self._source[idx] == "\\":
+                idx += 1
+
+                if idx >= len(self._source):
+                    self._errorReporter.errorAt(start - 1, "unclosed string literal")
+
+            idx += 1
+
+        self._errorReporter.errorAt(start - 1, "unclosed string literal")
+
     def _readStringLiteral(self, start: int) -> tuple[Token, int]:
         """Tokenizes a string literal.
 
@@ -124,31 +176,34 @@ class Tokenizer:
             tuple[Token, int]:
                 The string literal token and the index immediately after the
                 closing quote.
-
-        Raises:
-            SystemExit: If the string literal is unterminated.
         """
+        end = self._stringLiteralEnd(start + 1)
+
+        chars: list[str] = []
         idx = start + 1
 
-        while idx < len(self._source) and self._source[idx] != '"':
-            if self._source[idx] == "\n":
-                self._errorReporter.errorAt(start, "unclosed string literal")
-            idx += 1
+        while idx < end:
+            if self._source[idx] == "\\":
+                chars.append(_readEscapedChar(self._source[idx + 1]))
+                idx += 2
+            else:
+                chars.append(self._source[idx])
+                idx += 1
 
-        if idx >= len(self._source):
-            self._errorReporter.errorAt(start, "unclosed string literal")
+        string = "".join(chars)
 
         tok = Token(
             kind=TokenKind.STR,
-            loc=self._source[start : idx + 1],
+            loc=self._source[start : end + 1],
             pos=start,
-            length=idx - start + 1,
+            length=end - start + 1,
         )
 
-        tok.dtype = arrayOf(dtypeChar, idx - start)
-        tok.string = self._source[start + 1 : idx] + "\0"
+        # +1 for the terminating '\0', just like chibicc.
+        tok.dtype = arrayOf(dtypeChar, len(string) + 1)
+        tok.string = string + "\0"
 
-        return tok, idx + 1
+        return tok, end + 1
 
     def tokenize(self) -> list[Token]:
         """Tokenizes the source code into a list of tokens.
