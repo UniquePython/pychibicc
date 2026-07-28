@@ -2,9 +2,9 @@ from pychibicc.backend.asm_writer import AsmWriter, Syntax
 from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
 from pychibicc.syntax.dtypes import Dtype, DtypeKind
-from pychibicc.syntax.nodes import Node, NodeKind, formatDtype, formatNode
+from pychibicc.syntax.formatting import formatDtype, formatNode
+from pychibicc.syntax.nodes import Node, NodeKind
 from pychibicc.syntax.objects import Obj
-
 
 _BYTE_NAMES = {
     0: "'\\0'",
