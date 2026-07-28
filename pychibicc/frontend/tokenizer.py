@@ -105,6 +105,7 @@ _KEYWORDS = {
     "until",
     "loop",
     "forever",
+    "infer",
     "sizeof",
     "int",
     "char",

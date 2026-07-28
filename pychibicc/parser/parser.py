@@ -303,6 +303,7 @@ class Parser:
                 | "until" "(" expr ")" stmt
                 | "loop" "(" expr ")" stmt
                 | "forever" stmt
+                | "infer" ident "=" expr ";"
                 | "{" compound-stmt
                 | expr-stmt
             ```
@@ -450,6 +451,25 @@ class Parser:
             node.then = self._stmt()
 
             return node
+
+        if equal(self._tokens[0], "infer"):
+            tok = self._tokens.popleft()
+
+            nameTok = self._tokens.popleft()
+            name = _getIdent(nameTok, self._errorReporter)
+
+            self._expect("=")
+
+            rhs = self._assign()
+            addDtype(rhs, self._errorReporter)
+
+            var = self._newLVar(name, rhs.dtype)
+            lhs = newVarNode(var, nameTok)
+
+            node = newBinary(NodeKind.ASSIGN, lhs, rhs, tok)
+            self._expect(";")
+
+            return newUnary(NodeKind.EXPR_STMT, node, tok)
 
         if equal(self._tokens[0], "{"):
             tok = self._tokens.popleft()

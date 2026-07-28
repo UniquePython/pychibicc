@@ -123,6 +123,15 @@
 4 int main() { int x[2][3]; int *y=x; y[4]=4; return x[1][1]; }
 5 int main() { int x[2][3]; int *y=x; y[5]=5; return x[1][2]; }
 
+5 int main() { infer x = 5; return x; }
+7 int main() { infer x = 5; infer y = x + 2; return y; }
+10 int main() { int a = 10; infer p = &a; return *p; }
+65 int main() { char c = 65; infer x = c; return x; }
+3 int main() { infer x = ret3(); return x; }
+55 int main() { infer i = 0; infer j = 0; loop(10) {i = i+1; j = i+j;} return j; }
+32 int main() { infer x = 5; return sizeof(x) * 4; }
+1 int main() { infer x = 3; infer y = 4; return x < y; }
+
 8 int main() { int x; return sizeof(x); }
 8 int main() { int x; return sizeof x; }
 8 int main() { int *x; return sizeof(x); }
