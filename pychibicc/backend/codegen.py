@@ -227,6 +227,11 @@ class CodeGenerator:
                 self._w.commentLast(f"store into {formatNode(node.lhs)}")
                 return
 
+            case NodeKind.STMT_EXPR:
+                for stmt in node.body:
+                    self._genStmt(stmt)
+                return
+
             case NodeKind.FUNCALL:
                 self._w.empty()
                 self._w.comment(f"--- begin call to {formatNode(node)} ---")

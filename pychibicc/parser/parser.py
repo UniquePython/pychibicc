@@ -730,7 +730,7 @@ class Parser:
 
         ## Grammar:
             ```
-            primary = "(" expr ")" | "sizeof" unary | ident func-args? | str | num
+            primary = "(" "{" stmt+ "}" ")" | "(" expr ")" | "sizeof" unary | ident func-args? | str | num
             ```
 
         Returns:
@@ -739,6 +739,17 @@ class Parser:
         Raises:
             SystemExit: If no valid primary expression is found.
         """
+        if equal(self._tokens[0], "(") and equal(self._tokens[1], "{"):
+            # This is a GNU statement expression.
+            tok = self._tokens[0]
+
+            self._expect("(")
+            brace_tok = self._tokens.popleft()
+            stmt = self._compoundStmt(brace_tok)
+            self._expect(")")
+
+            return Node(kind=NodeKind.STMT_EXPR, tok=tok, body=stmt.body)
+
         if equal(self._tokens[0], "("):
             self._tokens.popleft()
             node = self._expr()

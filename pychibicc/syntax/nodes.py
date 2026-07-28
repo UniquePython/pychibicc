@@ -38,6 +38,7 @@ class NodeKind(Enum):
     BLOCK = auto()  # { ... }
     FUNCALL = auto()  # Function call
     EXPR_STMT = auto()  # Expression statement
+    STMT_EXPR = auto()  # Statement expression
     VAR = auto()  # Variable
     NUM = auto()  # Integer
 
@@ -60,6 +61,7 @@ class Node:
     init: Node | None = None
     inc: Node | None = None
 
+    # Block or statement expression
     body: list[Node] = field(default_factory=list)  # Block
 
     # Function call
@@ -103,8 +105,7 @@ def addDtype(node: Node | None, errorReporter: ErrorReporter) -> None:
         case NodeKind.ASSIGN:
             if node.lhs.dtype.kind == DtypeKind.ARRAY:
                 errorReporter.errorTok(
-                    node.lhs.tok,
-                    f"{formatNode(node.lhs)} is not an lvalue",
+                    node.lhs.tok, f"{formatNode(node.lhs)} is not an lvalue"
                 )
 
             node.dtype = node.lhs.dtype
@@ -131,8 +132,19 @@ def addDtype(node: Node | None, errorReporter: ErrorReporter) -> None:
         case NodeKind.DEREF:
             if node.lhs.dtype.base is None:
                 errorReporter.errorTok(
-                    node.tok,
-                    f"{formatNode(node)} is an invalid pointer dereference",
+                    node.tok, f"{formatNode(node)} is an invalid pointer dereference"
                 )
 
             node.dtype = node.lhs.dtype.base
+
+        case NodeKind.STMT_EXPR:
+            if node.body:
+                stmt = node.body[-1]
+
+                if stmt.kind == NodeKind.EXPR_STMT:
+                    node.dtype = stmt.lhs.dtype
+                    return
+
+            errorReporter.errorTok(
+                node.tok, "statement expression returning void is not supported"
+            )
