@@ -14,6 +14,7 @@ from pychibicc.syntax.dtypes import (
     funcType,
     pointerTo,
 )
+from pychibicc.syntax.formatting import formatToken
 from pychibicc.syntax.node_constructors import (
     newAdd,
     newBinary,
@@ -43,9 +44,11 @@ def _getIdent(tok: Token, errorReporter: ErrorReporter) -> str:
         SystemExit: If the token is not an identifier.
     """
     if tok.kind != TokenKind.IDENT:
-        errorReporter.errorTok(tok, "expected an identifier")
+        errorReporter.errorTok(
+            tok, f"expected an identifier, but got {formatToken(tok)} instead"
+        )
 
-    return tok.loc
+    return tok.lexeme
 
 
 def _getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
@@ -62,7 +65,9 @@ def _getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
         SystemExit: If the token is not an identifier.
     """
     if tok.kind != TokenKind.NUM:
-        errorReporter.errorTok(tok, "expected a number")
+        errorReporter.errorTok(
+            tok, f"expected a number, but got {formatToken(tok)} instead"
+        )
 
     return tok.val
 
@@ -96,7 +101,9 @@ class Parser:
         tok = self._tokens.popleft()
 
         if not equal(tok, s):
-            self._errorReporter.errorTok(tok, f"expected '{s}'")
+            self._errorReporter.errorTok(
+                tok, f"expected '{s}', but got {formatToken(tok)} instead"
+            )
 
     def _consume(self, s: str) -> bool:
         """Consumes the current token if it matches the expected string.
@@ -123,11 +130,11 @@ class Parser:
             Obj | None: The matching local or global variable, or None if no match is found.
         """
         for lvar in self._locals:
-            if lvar.name == tok.loc:
+            if lvar.name == tok.lexeme:
                 return lvar
 
         for gvar in self._globals:
-            if gvar.name == tok.loc:
+            if gvar.name == tok.lexeme:
                 return gvar
 
         return None
@@ -232,7 +239,9 @@ class Parser:
         tok = self._tokens[0]
 
         if tok.kind != TokenKind.IDENT:
-            self._errorReporter.errorTok(tok, "expected a variable name")
+            self._errorReporter.errorTok(
+                tok, f"expected a variable name, but got {formatToken(tok)} instead"
+            )
 
         self._tokens.popleft()
 
@@ -723,7 +732,7 @@ class Parser:
 
         self._expect(")")
 
-        return newFuncall(start.loc, args, start)
+        return newFuncall(start.lexeme, args, start)
 
     def _primary(self) -> Node:
         """Parses a primary expression.
@@ -775,7 +784,7 @@ class Parser:
             var = self._findVar(tok)
 
             if var is None:
-                self._errorReporter.errorTok(tok, "undefined variable")
+                self._errorReporter.errorTok(tok, f"undefined variable {tok.lexeme}")
 
             self._tokens.popleft()
             return newVarNode(var, tok)
@@ -788,7 +797,9 @@ class Parser:
             self._tokens.popleft()
             return newNum(tok.val, tok)
 
-        self._errorReporter.errorTok(tok, "expected an expression")
+        self._errorReporter.errorTok(
+            tok, f"expected an expression, but got {formatToken(tok)} instead"
+        )
 
     def _createParamLVars(self, params: list[Dtype]) -> None:
         """Creates local variables for function parameters.

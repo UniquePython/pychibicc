@@ -2,6 +2,7 @@ from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
 from pychibicc.frontend.tokens import Token
 from pychibicc.syntax.dtypes import dtypeInt, isInteger
+from pychibicc.syntax.formatting import formatDtype
 from pychibicc.syntax.nodes import Node, NodeKind, addDtype
 from pychibicc.syntax.objects import Obj
 
@@ -121,7 +122,10 @@ def newAdd(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
         return newBinary(NodeKind.ADD, lhs, rhs, tok)
 
     if lhs.dtype.base is not None and rhs.dtype.base is not None:
-        errorReporter.errorTok(tok, "invalid operands")
+        errorReporter.errorTok(
+            tok,
+            f"invalid operands of type {formatDtype(lhs.dtype)} and {formatDtype(rhs.dtype)}",
+        )
 
     # Canonicalize num + ptr to ptr + num.
     if lhs.dtype.base is None and rhs.dtype.base is not None:
@@ -169,4 +173,7 @@ def newSub(lhs: Node, rhs: Node, tok: Token, errorReporter: ErrorReporter) -> No
 
         return newBinary(NodeKind.DIV, node, newNum(lhs.dtype.base.size, tok), tok)
 
-    errorReporter.errorTok(tok, "invalid operands")
+    errorReporter.errorTok(
+        tok,
+        f"invalid operands of type {formatDtype(lhs.dtype)} and {formatDtype(rhs.dtype)}",
+    )

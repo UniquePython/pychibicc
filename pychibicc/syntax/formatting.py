@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pychibicc.frontend.tokens import Token, TokenKind
 from pychibicc.syntax.dtypes import Dtype, DtypeKind
 from pychibicc.syntax.nodes import Node, NodeKind
 
@@ -37,6 +38,43 @@ def _formatStringLiteral(data: str) -> str:
     )
 
     return f'"{escaped}"'
+
+
+def formatToken(tok: Token | None) -> str:
+    """Formats a token for display in error messages.
+
+    Args:
+        tok (Token | None): The token to format.
+
+    Returns:
+        str: A textual representation of the token, e.g.
+            'identifier "foo"', 'the string literal "abc"', or
+            'end of file'.
+    """
+    if tok is None:
+        return "<none>"
+
+    match tok.kind:
+        case TokenKind.IDENT:
+            return f'identifier "{tok.lexeme}"'
+
+        case TokenKind.KEYWORD:
+            return f'keyword "{tok.lexeme}"'
+
+        case TokenKind.PUNCT:
+            return f'"{tok.lexeme}"'
+
+        case TokenKind.NUM:
+            return f"number {tok.val}"
+
+        case TokenKind.STR:
+            return f"string literal {_formatStringLiteral(tok.string)}"
+
+        case TokenKind.EOF:
+            return "end of file"
+
+        case _:
+            return f"<{tok.kind.name}>"
 
 
 def formatNode(node: Node | None) -> str:
@@ -111,15 +149,18 @@ def formatNode(node: Node | None) -> str:
 _PLACEHOLDER = "__T__"
 
 
-def formatDtype(dtype: Dtype) -> str:
+def formatDtype(dtype: Dtype | None = None) -> str:
     """Formats a type as a valid C declaration.
 
     Args:
-        dtype (Dtype): The type to format.
+        dtype (Dtype | None): The type to format.
 
     Returns:
         str: A C declaration representing the type.
     """
+
+    if dtype is None:
+        return "<none>"
 
     def declarator(dtype: Dtype) -> str:
         match dtype.kind:

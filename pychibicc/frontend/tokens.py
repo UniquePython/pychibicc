@@ -31,7 +31,7 @@ class Token:
 
     kind: TokenKind  # Token kind
     val: CInt = 0  # If kind is NUM, its value
-    loc: str = ""  # Token location
+    lexeme: str = ""  # Token lexeme
     pos: CInt = 0  # Token starting position
     length: CInt = 0  # Token length
     dtype: Dtype | None = None  # Used if kind == TokenKind.STR

@@ -299,7 +299,10 @@ class CodeGenerator:
                 self._w.emit2(extendInstruction, self._w.reg("al"), self._w.reg("rax"))
                 return
 
-        self._errorReporter.errorTok(node.tok, "internal error: invalid expression")
+        self._errorReporter.errorTok(
+            node.tok,
+            f"internal error: invalid expression (unhandled node kind {node.kind.name})",
+        )
 
     def _genStmt(self, node: Node) -> None:
         """Generates assembly code for a statement.
@@ -384,7 +387,10 @@ class CodeGenerator:
                 self._genExpr(node.lhs)
                 return
 
-        self._errorReporter.errorTok(node.tok, "internal error: invalid statement")
+        self._errorReporter.errorTok(
+            node.tok,
+            f"internal error: invalid statement (unhandled node kind {node.kind.name})",
+        )
 
     def _emitData(self, program: list[Obj]) -> None:
         """Emits assembly for the program's global variables.

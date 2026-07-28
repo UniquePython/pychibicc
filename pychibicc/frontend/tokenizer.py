@@ -14,7 +14,7 @@ def equal(tok: Token, op: str) -> bool:
     Returns:
         bool: True if the token exactly matches the operator, otherwise False.
     """
-    return tok.loc == op
+    return tok.lexeme == op
 
 
 def isTypename(tok: Token) -> bool:
@@ -107,7 +107,7 @@ def _isKeyword(tok: Token) -> bool:
     Returns:
         bool: True if the token is a keyword, otherwise False.
     """
-    return tok.loc in _KEYWORDS
+    return tok.lexeme in _KEYWORDS
 
 
 def _convertKeywords(tokens: list[Token]) -> None:
@@ -247,7 +247,7 @@ class Tokenizer:
 
         tok = Token(
             kind=TokenKind.STR,
-            loc=self._source[start : end + 1],
+            lexeme=self._source[start : end + 1],
             pos=start,
             length=end - start + 1,
         )
@@ -284,7 +284,7 @@ class Tokenizer:
                     Token(
                         kind=TokenKind.NUM,
                         val=CInt(self._source[start:idx]),
-                        loc=self._source[start:idx],
+                        lexeme=self._source[start:idx],
                         pos=start,
                         length=idx - start,
                     )
@@ -307,7 +307,7 @@ class Tokenizer:
                 tokens.append(
                     Token(
                         kind=TokenKind.IDENT,
-                        loc=self._source[start:idx],
+                        lexeme=self._source[start:idx],
                         pos=start,
                         length=idx - start,
                     )
@@ -322,7 +322,7 @@ class Tokenizer:
                 tokens.append(
                     Token(
                         kind=TokenKind.PUNCT,
-                        loc=self._source[idx : idx + punctLength],
+                        lexeme=self._source[idx : idx + punctLength],
                         pos=idx,
                         length=punctLength,
                     )
@@ -331,7 +331,7 @@ class Tokenizer:
                 idx += punctLength
                 continue
 
-            self._errorReporter.errorAt(idx, "invalid token")
+            self._errorReporter.errorAt(idx, f"invalid token: '{self._source[idx]}'")
 
         tokens.append(Token(TokenKind.EOF, pos=len(self._source)))
         _convertKeywords(tokens)
