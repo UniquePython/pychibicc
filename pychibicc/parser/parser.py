@@ -297,6 +297,7 @@ class Parser:
             ```
             stmt = "return" expr ";"
                 | "if" "(" expr ")" stmt ("else" stmt)?
+                | "unless" "(" expr ")" stmt ("else" stmt)?
                 | "for" "(" expr-stmt expr? ";" expr? ")" stmt
                 | "while" "(" expr ")" stmt
                 | "until" "(" expr ")" stmt
@@ -323,6 +324,23 @@ class Parser:
 
             self._expect("(")
             node.cond = self._expr()
+            self._expect(")")
+
+            node.then = self._stmt()
+
+            if equal(self._tokens[0], "else"):
+                self._tokens.popleft()
+                node.els = self._stmt()
+
+            return node
+
+        if equal(self._tokens[0], "unless"):
+            tok = self._tokens.popleft()
+
+            node = newNode(NodeKind.IF, tok)
+
+            self._expect("(")
+            node.cond = newBinary(NodeKind.EQ, self._expr(), newNum(0, tok), tok)
             self._expect(")")
 
             node.then = self._stmt()

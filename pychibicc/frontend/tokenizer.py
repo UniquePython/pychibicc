@@ -99,6 +99,7 @@ _KEYWORDS = {
     "return",
     "if",
     "else",
+    "unless",
     "for",
     "while",
     "until",

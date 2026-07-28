@@ -47,6 +47,11 @@
 2 int main() { if (1) return 2; return 3; }
 2 int main() { if (2-1) return 2; return 3; }
 
+2 int main() { unless (0) return 2; return 3; }
+2 int main() { unless (1-1) return 2; return 3; }
+3 int main() { unless (1) return 2; return 3; }
+3 int main() { unless (2-1) return 2; return 3; }
+
 55 int main() { int i=0; int j=0; for (i=0; i<=10; i=i+1) j=i+j; return j; }
 3 int main() { for (;;) return 3; return 5; }
 
