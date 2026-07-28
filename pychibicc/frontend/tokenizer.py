@@ -282,6 +282,25 @@ class Tokenizer:
         idx = 0
 
         while idx < len(self._source):
+            # Skip line comments.
+            if self._source.startswith("//", idx):
+                idx += 2
+
+                while idx < len(self._source) and self._source[idx] != "\n":
+                    idx += 1
+
+                continue
+
+            # Skip block comments.
+            if self._source.startswith("/*", idx):
+                end = self._source.find("*/", idx + 2)
+
+                if end == -1:
+                    self._errorReporter.errorAt(idx, "unclosed block comment")
+
+                idx = end + 2
+                continue
+
             # Skip whitespace.
             if self._source[idx].isspace():
                 idx += 1
