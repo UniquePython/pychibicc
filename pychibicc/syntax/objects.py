@@ -24,6 +24,9 @@ class Obj:
     # Global variable or function
     isFunction: bool = False
 
+    # Global variable
+    initData: str | None = None
+
     params: list[Obj] = field(default_factory=list)  # Function parameters
     body: Node | None = None  # Function body
     locals: list[Obj] = field(default_factory=list)  # Local variables

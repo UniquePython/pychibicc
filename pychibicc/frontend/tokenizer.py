@@ -1,6 +1,7 @@
 from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
 from pychibicc.frontend.tokens import Token, TokenKind
+from pychibicc.syntax.dtypes import arrayOf, dtypeChar
 
 
 def equal(tok: Token, op: str) -> bool:
@@ -113,6 +114,42 @@ class Tokenizer:
         self._errorReporter = errorReporter
         self._source = self._errorReporter.source
 
+    def _readStringLiteral(self, start: int) -> tuple[Token, int]:
+        """Tokenizes a string literal.
+
+        Args:
+            start (int): Index of the opening double quote.
+
+        Returns:
+            tuple[Token, int]:
+                The string literal token and the index immediately after the
+                closing quote.
+
+        Raises:
+            SystemExit: If the string literal is unterminated.
+        """
+        idx = start + 1
+
+        while idx < len(self._source) and self._source[idx] != '"':
+            if self._source[idx] == "\n":
+                self._errorReporter.errorAt(start, "unclosed string literal")
+            idx += 1
+
+        if idx >= len(self._source):
+            self._errorReporter.errorAt(start, "unclosed string literal")
+
+        tok = Token(
+            kind=TokenKind.STR,
+            loc=self._source[start : idx + 1],
+            pos=start,
+            length=idx - start + 1,
+        )
+
+        tok.dtype = arrayOf(dtypeChar, idx - start)
+        tok.string = self._source[start + 1 : idx] + "\0"
+
+        return tok, idx + 1
+
     def tokenize(self) -> list[Token]:
         """Tokenizes the source code into a list of tokens.
 
@@ -144,6 +181,12 @@ class Tokenizer:
                         length=idx - start,
                     )
                 )
+                continue
+
+            # String literal.
+            if self._source[idx] == '"':
+                tok, idx = self._readStringLiteral(idx)
+                tokens.append(tok)
                 continue
 
             # Identifier or Keyword

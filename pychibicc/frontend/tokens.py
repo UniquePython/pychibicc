@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+import typing
 from dataclasses import dataclass
 from enum import Enum, auto
 
 from pychibicc.ctype.cint import CInt
+
+if typing.TYPE_CHECKING:
+    from pychibicc.syntax.dtypes import Dtype
 
 
 class TokenKind(Enum):
@@ -14,6 +20,7 @@ class TokenKind(Enum):
     IDENT = auto()  # Identifiers
     PUNCT = auto()  # Punctuators
     KEYWORD = auto()  # Keywords
+    STR = auto()  # String literals
     NUM = auto()  # Numeric literals
     EOF = auto()  # End-of-file markers
 
@@ -27,3 +34,5 @@ class Token:
     loc: str = ""  # Token location
     pos: CInt = 0  # Token starting position
     length: CInt = 0  # Token length
+    dtype: Dtype | None = None  # Used if kind == TokenKind.STR
+    string: str = "\0"  # String literal contents including terminating '\0'

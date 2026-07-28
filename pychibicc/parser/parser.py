@@ -82,6 +82,8 @@ class Parser:
         self._locals: list[Obj] = []
         self._globals: list[Obj] = []
 
+        self._nextUniqueId: CInt = 0
+
     def _expect(self, s: str) -> None:
         """Consumes the current token if it matches the expected string.
 
@@ -662,6 +664,41 @@ class Parser:
         self._globals.append(var)
         return var
 
+    def _newUniqueName(self) -> str:
+        """Generates a unique internal symbol name.
+
+        Returns:
+            str: A unique symbol name.
+        """
+        name = f".pychibicc.symbol.{self._nextUniqueId}"
+        self._nextUniqueId += 1
+        return name
+
+    def _newAnonGVar(self, dtype: Dtype) -> Obj:
+        """Creates a new anonymous global variable.
+
+        Args:
+            dtype (Dtype): The variable's datatype.
+
+        Returns:
+            Obj: The newly created global variable.
+        """
+        return self._newGVar(self._newUniqueName(), dtype)
+
+    def _newStringLiteral(self, string: str, dtype: Dtype) -> Obj:
+        """Creates an anonymous global variable for a string literal.
+
+        Args:
+            string (str): The string literal contents.
+            dtype (Dtype): The array type of the string.
+
+        Returns:
+            Obj: The global variable holding the string.
+        """
+        var = self._newAnonGVar(dtype)
+        var.initData = string
+        return var
+
     def _funcall(self) -> Node:
         """Parses a function call.
 
@@ -693,7 +730,7 @@ class Parser:
 
         ## Grammar:
             ```
-            primary = "(" expr ")" | "sizeof" unary | ident func-args? | num
+            primary = "(" expr ")" | "sizeof" unary | ident func-args? | str | num
             ```
 
         Returns:
@@ -731,6 +768,10 @@ class Parser:
 
             self._tokens.popleft()
             return newVarNode(var, tok)
+
+        if tok.kind == TokenKind.STR:
+            self._tokens.popleft()
+            return newVarNode(self._newStringLiteral(tok.string, tok.dtype), tok)
 
         if tok.kind == TokenKind.NUM:
             self._tokens.popleft()

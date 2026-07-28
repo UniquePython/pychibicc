@@ -375,8 +375,13 @@ class CodeGenerator:
             self._w.directive(".data")
             self._w.directive(f".globl {var.name}")
             self._w.raw(f"{var.name}:")
-            self._w.directive(f".zero {var.dtype.size}")
-            self._w.commentLast(f"reserve {var.dtype.size} bytes")
+
+            if var.initData is not None:
+                for i in range(var.dtype.size):
+                    self._w.directive(f".byte {ord(var.initData[i])}")
+            else:
+                self._w.directive(f".zero {var.dtype.size}")
+                self._w.commentLast(f"reserve {var.dtype.size} bytes")
             self._w.empty()
 
     def _emitText(self, program: list[Obj]) -> None:
