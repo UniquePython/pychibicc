@@ -103,6 +103,7 @@ _KEYWORDS = {
     "for",
     "while",
     "until",
+    "loop",
     "forever",
     "sizeof",
     "int",

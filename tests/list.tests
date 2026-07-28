@@ -59,6 +59,13 @@
 
 11 int main() { int i=0; until(i>10) i=i+1; return i; }
 
+10 int main() { int i=0; loop(10) i=i+1; return i; }
+0 int main() { int i=0; loop(0) i=i+1; return i; }
+55 int main() { int i=0; int j=0; loop(10) {i=i+1; j=i+j;} return j; }
+5 int main() { loop(5) return 5; return 0; }
+3 int main() { int n=3; int i=0; loop(n) i=i+1; return i; }
+9 int main() { int i=0; loop(3) loop(3) i=i+1; return i; }
+
 3 int main() { {1; {2;} return 3;} }
 5 int main() { ;;; return 5; }
 

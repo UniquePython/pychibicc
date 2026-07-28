@@ -301,6 +301,7 @@ class Parser:
                 | "for" "(" expr-stmt expr? ";" expr? ")" stmt
                 | "while" "(" expr ")" stmt
                 | "until" "(" expr ")" stmt
+                | "loop" "(" expr ")" stmt
                 | "forever" stmt
                 | "{" compound-stmt
                 | expr-stmt
@@ -391,6 +392,53 @@ class Parser:
             self._expect("(")
             node.cond = newBinary(NodeKind.EQ, self._expr(), newNum(0, tok), tok)
             self._expect(")")
+
+            node.then = self._stmt()
+            return node
+
+        if equal(self._tokens[0], "loop"):
+            tok = self._tokens.popleft()
+
+            self._expect("(")
+            count = self._expr()
+            self._expect(")")
+
+            node = newNode(NodeKind.FOR, tok)
+
+            bound = self._newLVar(self._newUniqueName(), dtypeInt)
+            counter = self._newLVar(self._newUniqueName(), dtypeInt)
+
+            boundNode = newVarNode(bound, tok)
+            counterNode = newVarNode(counter, tok)
+
+            # init: <bound> = count; <counter> = 0;
+            # (count is evaluated exactly once, up front, not on every iteration)
+            node.init = newBlock(
+                [
+                    newUnary(
+                        NodeKind.EXPR_STMT,
+                        newBinary(NodeKind.ASSIGN, boundNode, count, tok),
+                        tok,
+                    ),
+                    newUnary(
+                        NodeKind.EXPR_STMT,
+                        newBinary(NodeKind.ASSIGN, counterNode, newNum(0, tok), tok),
+                        tok,
+                    ),
+                ],
+                tok,
+            )
+
+            # cond: <counter> < <bound>
+            node.cond = newBinary(NodeKind.LT, counterNode, boundNode, tok)
+
+            # inc: <counter> = <counter> + 1
+            node.inc = newBinary(
+                NodeKind.ASSIGN,
+                counterNode,
+                newAdd(counterNode, newNum(1, tok), tok, self._errorReporter),
+                tok,
+            )
 
             node.then = self._stmt()
             return node
