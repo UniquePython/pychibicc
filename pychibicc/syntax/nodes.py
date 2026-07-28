@@ -70,6 +70,41 @@ class Node:
     val: CInt = 0  # Used if kind == NodeKind.NUM
 
 
+def _formatStringLiteral(data: str) -> str:
+    """Formats string-literal storage as a C string literal for display.
+
+    Args:
+        data (str): The raw byte content, including the trailing NUL added
+            when the literal was tokenized.
+
+    Returns:
+        str: A double-quoted, escaped representation of the string, e.g.
+            '"ab\\n"'.
+    """
+    content = data[:-1] if data.endswith("\0") else data
+
+    escapes = {
+        "\\": "\\\\",
+        '"': '\\"',
+        "\a": "\\a",
+        "\b": "\\b",
+        "\t": "\\t",
+        "\n": "\\n",
+        "\v": "\\v",
+        "\f": "\\f",
+        "\r": "\\r",
+        "\x1b": "\\e",
+        "\0": "\\0",
+    }
+
+    escaped = "".join(
+        escapes.get(ch, ch if ch.isprintable() else f"\\x{ord(ch):02x}")
+        for ch in content
+    )
+
+    return f'"{escaped}"'
+
+
 def formatNode(node: Node | None) -> str:
     """Formats an AST node as a compact C-like expression.
 
@@ -88,6 +123,8 @@ def formatNode(node: Node | None) -> str:
             return str(node.val)
 
         case NodeKind.VAR:
+            if node.var.initData is not None:
+                return _formatStringLiteral(node.var.initData)
             return node.var.name
 
         case NodeKind.NEG:

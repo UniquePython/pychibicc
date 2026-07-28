@@ -6,6 +6,39 @@ from pychibicc.syntax.nodes import Node, NodeKind, formatDtype, formatNode
 from pychibicc.syntax.objects import Obj
 
 
+_BYTE_NAMES = {
+    0: "'\\0'",
+    7: "'\\a'",
+    8: "'\\b'",
+    9: "'\\t'",
+    10: "'\\n'",
+    11: "'\\v'",
+    12: "'\\f'",
+    13: "'\\r'",
+    27: "'\\e'",
+    ord("'"): "'\\''",
+    ord("\\"): "'\\\\'",
+}
+
+
+def _describeByte(byte: CInt) -> str:
+    """Describes a single data byte for use in an assembly comment.
+
+    Args:
+        byte (CInt): The byte value (0-255) being emitted.
+
+    Returns:
+        str: A human-readable description, e.g. "'a'" or "'\\n'".
+    """
+    if byte in _BYTE_NAMES:
+        return _BYTE_NAMES[byte]
+
+    if 32 <= byte < 127:
+        return f"'{chr(byte)}'"
+
+    return f"0x{byte:02x}"
+
+
 def _alignTo(n: CInt, align: CInt) -> CInt:
     """Rounds up a value to the nearest multiple of the specified alignment.
 
@@ -378,7 +411,9 @@ class CodeGenerator:
 
             if var.initData is not None:
                 for i in range(var.dtype.size):
-                    self._w.directive(f".byte {ord(var.initData[i])}")
+                    byte = ord(var.initData[i])
+                    self._w.directive(f".byte {byte}")
+                    self._w.commentLast(_describeByte(byte))
             else:
                 self._w.directive(f".zero {var.dtype.size}")
                 self._w.commentLast(f"reserve {var.dtype.size} bytes")
