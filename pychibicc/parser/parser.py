@@ -299,6 +299,7 @@ class Parser:
                 | "if" "(" expr ")" stmt ("else" stmt)?
                 | "for" "(" expr-stmt expr? ";" expr? ")" stmt
                 | "while" "(" expr ")" stmt
+                | "until" "(" expr ")" stmt
                 | "forever" stmt
                 | "{" compound-stmt
                 | expr-stmt
@@ -359,6 +360,18 @@ class Parser:
 
             self._expect("(")
             node.cond = self._expr()
+            self._expect(")")
+
+            node.then = self._stmt()
+            return node
+
+        if equal(self._tokens[0], "until"):
+            tok = self._tokens.popleft()
+
+            node = newNode(NodeKind.FOR, tok)
+
+            self._expect("(")
+            node.cond = newBinary(NodeKind.EQ, self._expr(), newNum(0, tok), tok)
             self._expect(")")
 
             node.then = self._stmt()
