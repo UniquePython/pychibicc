@@ -73,6 +73,18 @@ def _getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
     return tok.val
 
 
+def _bool(value: bool) -> CInt:
+    """Converts a boolean value to a C integer.
+
+    Args:
+        value (bool): The boolean value to convert.
+
+    Returns:
+        CInt: 1 if the value is True, otherwise 0.
+    """
+    return CInt(1 if value else 0)
+
+
 def _evalConst(node: Node, errorReporter: ErrorReporter) -> CInt:
     """Evaluates a constant expression at compile time.
 
@@ -126,22 +138,22 @@ def _evalConst(node: Node, errorReporter: ErrorReporter) -> CInt:
         case NodeKind.EQ:
             lhs = _evalConst(node.lhs, errorReporter)
             rhs = _evalConst(node.rhs, errorReporter)
-            return CInt(1) if lhs == rhs else CInt(0)
+            return _bool(lhs == rhs)
 
         case NodeKind.NE:
             lhs = _evalConst(node.lhs, errorReporter)
             rhs = _evalConst(node.rhs, errorReporter)
-            return CInt(1) if lhs != rhs else CInt(0)
+            return _bool(lhs != rhs)
 
         case NodeKind.LT:
             lhs = _evalConst(node.lhs, errorReporter)
             rhs = _evalConst(node.rhs, errorReporter)
-            return CInt(1) if lhs < rhs else CInt(0)
+            return _bool(lhs < rhs)
 
         case NodeKind.LE:
             lhs = _evalConst(node.lhs, errorReporter)
             rhs = _evalConst(node.rhs, errorReporter)
-            return CInt(1) if lhs <= rhs else CInt(0)
+            return _bool(lhs <= rhs)
 
         case _:
             errorReporter.errorTok(
@@ -184,6 +196,68 @@ class Parser:
 
         self._nextUniqueId: CInt = 0
 
+    def _peek(self, offset: int = 0) -> Token:
+        """Returns the token at the specified offset without consuming it.
+
+        Args:
+            offset (int, optional): The number of tokens ahead of the current token
+                to inspect. Defaults to 0.
+
+        Returns:
+            Token: The token at the specified offset.
+        """
+        return self._tokens[offset]
+
+    def _at(self, s: str) -> bool:
+        """Checks whether the current token matches the specified string.
+
+        Args:
+            s (str): The string to compare against the current token.
+
+        Returns:
+            bool: True if the current token matches the specified string, otherwise False.
+        """
+        return equal(self._peek(), s)
+
+    def _advance(self):
+        """Consumes and returns the current token.
+
+        Returns:
+            Token: The current token, which is removed from the front of the token stream.
+        """
+        return self._tokens.popleft()
+
+    def _expect(self, s: str) -> None:
+        """Consumes the current token if it matches the expected string.
+
+        Args:
+            s (str): The expected token text.
+
+        Raises:
+            SystemExit: If the current token does not match the expected string.
+        """
+        tok = self._advance()
+
+        if not equal(tok, s):
+            self._errorReporter.errorTok(
+                tok, f"expected '{s}', but got {formatToken(tok)} instead"
+            )
+
+    def _consume(self, s: str) -> bool:
+        """Consumes the current token if it matches the expected string.
+
+        Args:
+            s (str): The expected token text.
+
+        Returns:
+            bool: True if the token was consumed, otherwise False.
+        """
+        if self._at(s):
+            self._advance()
+            return True
+
+        return False
+
     def _enterScope(self) -> None:
         """Pushes a new, empty block scope."""
         self._scopes.append(Scope())
@@ -200,37 +274,6 @@ class Parser:
             var (Obj): The variable the name should resolve to.
         """
         self._scopes[-1].vars.append((name, var))
-
-    def _expect(self, s: str) -> None:
-        """Consumes the current token if it matches the expected string.
-
-        Args:
-            s (str): The expected token text.
-
-        Raises:
-            SystemExit: If the current token does not match the expected string.
-        """
-        tok = self._tokens.popleft()
-
-        if not equal(tok, s):
-            self._errorReporter.errorTok(
-                tok, f"expected '{s}', but got {formatToken(tok)} instead"
-            )
-
-    def _consume(self, s: str) -> bool:
-        """Consumes the current token if it matches the expected string.
-
-        Args:
-            s (str): The expected token text.
-
-        Returns:
-            bool: True if the token was consumed, otherwise False.
-        """
-        if equal(self._tokens[0], s):
-            self._tokens.popleft()
-            return True
-
-        return False
 
     def _findVar(self, tok: Token) -> Obj | None:
         """Finds a variable by name, honoring block scope.
@@ -286,7 +329,7 @@ class Parser:
         """
         params: list[Dtype] = []
 
-        while not equal(self._tokens[0], ")"):
+        while not self._at(")"):
             if params:
                 self._expect(",")
 
@@ -316,14 +359,14 @@ class Parser:
         Returns:
             Dtype: The resulting type.
         """
-        if equal(self._tokens[0], "("):
+        if self._at("("):
             self._expect("(")
             return self._funcParams(dtype)
 
-        if equal(self._tokens[0], "["):
+        if self._at("["):
             self._expect("[")
 
-            tok = self._tokens.popleft()
+            tok = self._advance()
             sz = _getNumber(tok, self._errorReporter)
             self._expect("]")
 
@@ -349,14 +392,14 @@ class Parser:
         while self._consume("*"):
             dtype = pointerTo(dtype)
 
-        tok = self._tokens[0]
+        tok = self._peek()
 
         if tok.kind != TokenKind.IDENT:
             self._errorReporter.errorTok(
                 tok, f"expected a variable name, but got {formatToken(tok)} instead"
             )
 
-        self._tokens.popleft()
+        self._advance()
 
         dtype = self._typeSuffix(dtype)
         dtype.name = tok
@@ -379,7 +422,7 @@ class Parser:
         body: list[Node] = []
         i = 0
 
-        while not equal(self._tokens[0], ";"):
+        while not self._at(";"):
             if i > 0:
                 self._expect(",")
             i += 1
@@ -387,10 +430,10 @@ class Parser:
             dtype = self._declarator(baseDtype)
             var = self._newLVar(_getIdent(dtype.name, self._errorReporter), dtype)
 
-            if not equal(self._tokens[0], "="):
+            if not self._at("="):
                 continue
 
-            tok = self._tokens.popleft()
+            tok = self._advance()
 
             lhs = newVarNode(var, dtype.name)
             rhs = self._assign()
@@ -398,7 +441,7 @@ class Parser:
             node = newBinary(NodeKind.ASSIGN, lhs, rhs, tok)
             body.append(newUnary(NodeKind.EXPR_STMT, node, tok))
 
-        tok = self._tokens[0]
+        tok = self._peek()
         self._expect(";")
 
         return newBlock(body, tok)
@@ -424,16 +467,16 @@ class Parser:
         Returns:
             Node: The root node of the parsed statement.
         """
-        if equal(self._tokens[0], "return"):
-            tok = self._tokens.popleft()
+        if self._at("return"):
+            tok = self._advance()
 
             node = newUnary(NodeKind.RETURN, self._expr(), tok)
 
             self._expect(";")
             return node
 
-        if equal(self._tokens[0], "if"):
-            tok = self._tokens.popleft()
+        if self._at("if"):
+            tok = self._advance()
 
             node = newNode(NodeKind.IF, tok)
 
@@ -443,14 +486,14 @@ class Parser:
 
             node.then = self._stmt()
 
-            if equal(self._tokens[0], "else"):
-                self._tokens.popleft()
+            if self._at("else"):
+                self._advance()
                 node.els = self._stmt()
 
             return node
 
-        if equal(self._tokens[0], "_Unless"):
-            tok = self._tokens.popleft()
+        if self._at("_Unless"):
+            tok = self._advance()
 
             node = newNode(NodeKind.IF, tok)
 
@@ -460,14 +503,14 @@ class Parser:
 
             node.then = self._stmt()
 
-            if equal(self._tokens[0], "else"):
-                self._tokens.popleft()
+            if self._at("else"):
+                self._advance()
                 node.els = self._stmt()
 
             return node
 
-        if equal(self._tokens[0], "for"):
-            tok = self._tokens.popleft()
+        if self._at("for"):
+            tok = self._advance()
 
             node = newNode(NodeKind.FOR, tok)
 
@@ -475,19 +518,19 @@ class Parser:
 
             node.init = self._exprStmt()
 
-            if not equal(self._tokens[0], ";"):
+            if not self._at(";"):
                 node.cond = self._expr()
             self._expect(";")
 
-            if not equal(self._tokens[0], ")"):
+            if not self._at(")"):
                 node.inc = self._expr()
             self._expect(")")
 
             node.then = self._stmt()
             return node
 
-        if equal(self._tokens[0], "while"):
-            tok = self._tokens.popleft()
+        if self._at("while"):
+            tok = self._advance()
 
             node = newNode(NodeKind.FOR, tok)
 
@@ -498,8 +541,8 @@ class Parser:
             node.then = self._stmt()
             return node
 
-        if equal(self._tokens[0], "_Until"):
-            tok = self._tokens.popleft()
+        if self._at("_Until"):
+            tok = self._advance()
 
             node = newNode(NodeKind.FOR, tok)
 
@@ -510,8 +553,8 @@ class Parser:
             node.then = self._stmt()
             return node
 
-        if equal(self._tokens[0], "_Loop"):
-            tok = self._tokens.popleft()
+        if self._at("_Loop"):
+            tok = self._advance()
 
             self._expect("(")
             count = self._expr()
@@ -557,18 +600,18 @@ class Parser:
             node.then = self._stmt()
             return node
 
-        if equal(self._tokens[0], "_Forever"):
-            tok = self._tokens.popleft()
+        if self._at("_Forever"):
+            tok = self._advance()
 
             node = newNode(NodeKind.FOR, tok)
             node.then = self._stmt()
 
             return node
 
-        if equal(self._tokens[0], "_Infer"):
-            tok = self._tokens.popleft()
+        if self._at("_Infer"):
+            tok = self._advance()
 
-            nameTok = self._tokens.popleft()
+            nameTok = self._advance()
             name = _getIdent(nameTok, self._errorReporter)
 
             self._expect("=")
@@ -584,8 +627,8 @@ class Parser:
 
             return newUnary(NodeKind.EXPR_STMT, node, tok)
 
-        if equal(self._tokens[0], "{"):
-            tok = self._tokens.popleft()
+        if self._at("{"):
+            tok = self._advance()
             return self._compoundStmt(tok)
 
         return self._exprStmt()
@@ -608,8 +651,8 @@ class Parser:
 
         self._enterScope()
 
-        while not equal(self._tokens[0], "}"):
-            if isTypename(self._tokens[0]):
+        while not self._at("}"):
+            if isTypename(self._peek()):
                 node = self._declaration()
             else:
                 node = self._stmt()
@@ -634,11 +677,11 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression statement.
         """
-        if equal(self._tokens[0], ";"):
-            tok = self._tokens.popleft()
+        if self._at(";"):
+            tok = self._advance()
             return newNode(NodeKind.BLOCK, tok)
 
-        tok = self._tokens[0]
+        tok = self._peek()
 
         node = newUnary(NodeKind.EXPR_STMT, self._expr(), tok)
 
@@ -671,8 +714,8 @@ class Parser:
         """
         node = self._equality()
 
-        if equal(self._tokens[0], "="):
-            tok = self._tokens.popleft()
+        if self._at("="):
+            tok = self._advance()
             node = newBinary(NodeKind.ASSIGN, node, self._assign(), tok)
 
         return node
@@ -691,15 +734,15 @@ class Parser:
         node = self._relational()
 
         while True:
-            start = self._tokens[0]
+            start = self._peek()
 
-            if equal(self._tokens[0], "=="):
-                self._tokens.popleft()
+            if self._at("=="):
+                self._advance()
                 node = newBinary(NodeKind.EQ, node, self._relational(), start)
                 continue
 
-            if equal(self._tokens[0], "!="):
-                self._tokens.popleft()
+            if self._at("!="):
+                self._advance()
                 node = newBinary(NodeKind.NE, node, self._relational(), start)
                 continue
 
@@ -719,25 +762,25 @@ class Parser:
         node = self._add()
 
         while True:
-            start = self._tokens[0]
+            start = self._peek()
 
-            if equal(self._tokens[0], "<"):
-                self._tokens.popleft()
+            if self._at("<"):
+                self._advance()
                 node = newBinary(NodeKind.LT, node, self._add(), start)
                 continue
 
-            if equal(self._tokens[0], "<="):
-                self._tokens.popleft()
+            if self._at("<="):
+                self._advance()
                 node = newBinary(NodeKind.LE, node, self._add(), start)
                 continue
 
-            if equal(self._tokens[0], ">"):
-                self._tokens.popleft()
+            if self._at(">"):
+                self._advance()
                 node = newBinary(NodeKind.LT, self._add(), node, start)
                 continue
 
-            if equal(self._tokens[0], ">="):
-                self._tokens.popleft()
+            if self._at(">="):
+                self._advance()
                 node = newBinary(NodeKind.LE, self._add(), node, start)
                 continue
 
@@ -757,15 +800,15 @@ class Parser:
         node = self._mul()
 
         while True:
-            start = self._tokens[0]
+            start = self._peek()
 
-            if equal(self._tokens[0], "+"):
-                self._tokens.popleft()
+            if self._at("+"):
+                self._advance()
                 node = newAdd(node, self._mul(), start, self._errorReporter)
                 continue
 
-            if equal(self._tokens[0], "-"):
-                self._tokens.popleft()
+            if self._at("-"):
+                self._advance()
                 node = newSub(node, self._mul(), start, self._errorReporter)
                 continue
 
@@ -785,15 +828,15 @@ class Parser:
         node = self._unary()
 
         while True:
-            start = self._tokens[0]
+            start = self._peek()
 
-            if equal(self._tokens[0], "*"):
-                self._tokens.popleft()
+            if self._at("*"):
+                self._advance()
                 node = newBinary(NodeKind.MUL, node, self._unary(), start)
                 continue
 
-            if equal(self._tokens[0], "/"):
-                self._tokens.popleft()
+            if self._at("/"):
+                self._advance()
                 node = newBinary(NodeKind.DIV, node, self._unary(), start)
                 continue
 
@@ -811,20 +854,20 @@ class Parser:
         Returns:
             Node: The root node of the parsed expression.
         """
-        if equal(self._tokens[0], "+"):
-            self._tokens.popleft()
+        if self._at("+"):
+            self._advance()
             return self._unary()
 
-        if equal(self._tokens[0], "-"):
-            tok = self._tokens.popleft()
+        if self._at("-"):
+            tok = self._advance()
             return newUnary(NodeKind.NEG, self._unary(), tok)
 
-        if equal(self._tokens[0], "&"):
-            tok = self._tokens.popleft()
+        if self._at("&"):
+            tok = self._advance()
             return newUnary(NodeKind.ADDR, self._unary(), tok)
 
-        if equal(self._tokens[0], "*"):
-            tok = self._tokens.popleft()
+        if self._at("*"):
+            tok = self._advance()
             return newUnary(NodeKind.DEREF, self._unary(), tok)
 
         return self._postfix()
@@ -842,8 +885,8 @@ class Parser:
         """
         node = self._primary()
 
-        while equal(self._tokens[0], "["):
-            start = self._tokens.popleft()
+        while self._at("["):
+            start = self._advance()
 
             idx = self._expr()
             self._expect("]")
@@ -946,12 +989,12 @@ class Parser:
         Returns:
             Node: The parsed function call.
         """
-        start = self._tokens.popleft()  # identifier
+        start = self._advance()  # identifier
         self._expect("(")
 
         args: list[Node] = []
 
-        while not equal(self._tokens[0], ")"):
+        while not self._at(")"):
             if args:
                 self._expect(",")
 
@@ -981,33 +1024,33 @@ class Parser:
         Raises:
             SystemExit: If no valid primary expression is found.
         """
-        if equal(self._tokens[0], "(") and equal(self._tokens[1], "{"):
+        if self._at("(") and equal(self._peek(1), "{"):
             # This is a GNU statement expression.
-            tok = self._tokens[0]
+            tok = self._peek()
 
             self._expect("(")
-            brace_tok = self._tokens.popleft()
+            brace_tok = self._advance()
             stmt = self._compoundStmt(brace_tok)
             self._expect(")")
 
             return Node(kind=NodeKind.STMT_EXPR, tok=tok, body=stmt.body)
 
-        if equal(self._tokens[0], "("):
-            self._tokens.popleft()
+        if self._at("("):
+            self._advance()
             node = self._expr()
             self._expect(")")
             return node
 
-        if equal(self._tokens[0], "sizeof"):
-            tok = self._tokens.popleft()
+        if self._at("sizeof"):
+            tok = self._advance()
 
             node = self._unary()
             addDtype(node, self._errorReporter)
 
             return newNum(node.dtype.size, tok)
 
-        if equal(self._tokens[0], "_Constexpr"):
-            tok = self._tokens.popleft()
+        if self._at("_Constexpr"):
+            tok = self._advance()
 
             self._expect("(")
             node = self._expr()
@@ -1015,11 +1058,11 @@ class Parser:
 
             return newNum(_evalConst(node, self._errorReporter), tok)
 
-        tok = self._tokens[0]
+        tok = self._peek()
 
         if tok.kind == TokenKind.IDENT:
             # Function call
-            if len(self._tokens) > 1 and equal(self._tokens[1], "("):
+            if len(self._tokens) > 1 and equal(self._peek(1), "("):
                 return self._funcall()
 
             # Variable
@@ -1028,15 +1071,15 @@ class Parser:
             if var is None:
                 self._errorReporter.errorTok(tok, f"undefined variable {tok.lexeme}")
 
-            self._tokens.popleft()
+            self._advance()
             return newVarNode(var, tok)
 
         if tok.kind == TokenKind.STR:
-            self._tokens.popleft()
+            self._advance()
             return newVarNode(self._newStringLiteral(tok.string, tok.dtype), tok)
 
         if tok.kind == TokenKind.NUM:
-            self._tokens.popleft()
+            self._advance()
             return newNum(tok.val, tok)
 
         self._errorReporter.errorTok(
@@ -1079,7 +1122,7 @@ class Parser:
         self._createParamLVars(dtype.params)
         fn.params = self._locals.copy()
 
-        tok = self._tokens[0]
+        tok = self._peek()
         self._expect("{")
         fn.body = self._compoundStmt(tok)
         fn.locals = self._locals.copy()
@@ -1116,7 +1159,7 @@ class Parser:
         Returns:
             bool: True if the declaration is a function, False otherwise.
         """
-        if equal(self._tokens[0], ";"):
+        if self._at(";"):
             return False
 
         tokens = self._tokens.copy()
@@ -1140,7 +1183,7 @@ class Parser:
         """
         self._globals.clear()
 
-        while self._tokens[0].kind != TokenKind.EOF:
+        while self._peek().kind != TokenKind.EOF:
             baseType = self._declspec()
 
             # Function
