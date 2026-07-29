@@ -142,6 +142,31 @@ def formatNode(node: Node | None) -> str:
         case NodeKind.EXPR_STMT:
             return formatNode(node.lhs)
 
+        case NodeKind.RETURN:
+            return f"return {formatNode(node.lhs)}"
+
+        case NodeKind.IF:
+            s = f"if ({formatNode(node.cond)}) {formatNode(node.then)}"
+            if node.els is not None:
+                s += f" else {formatNode(node.els)}"
+            return s
+
+        case NodeKind.FOR:
+            if node.init is None and node.inc is None:
+                return f"while ({formatNode(node.cond)}) {formatNode(node.then)}"
+            return (
+                f"for ({formatNode(node.init)}; {formatNode(node.cond)}; "
+                f"{formatNode(node.inc)}) {formatNode(node.then)}"
+            )
+
+        case NodeKind.BLOCK:
+            stmts = " ".join(formatNode(stmt) for stmt in node.body)
+            return f"{{ {stmts} }}"
+
+        case NodeKind.STMT_EXPR:
+            stmts = " ".join(formatNode(stmt) for stmt in node.body)
+            return f"({{ {stmts} }})"
+
         case _:
             return f"<{node.kind.name}>"
 
