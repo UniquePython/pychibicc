@@ -1,4 +1,5 @@
 from collections import deque
+from dataclasses import dataclass, field
 
 from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
@@ -149,6 +150,18 @@ def _evalConst(node: Node, errorReporter: ErrorReporter) -> CInt:
             )
 
 
+@dataclass
+class Scope:
+    """Represents a single block scope's name-to-variable bindings.
+
+    Bindings are appended in declaration order; lookups walk this list in
+    reverse so that, within one scope, a later declaration of the same
+    name shadows an earlier one.
+    """
+
+    vars: list[tuple[str, Obj]] = field(default_factory=list)
+
+
 class Parser:
     """Parses a token stream into an abstract syntax tree (AST)."""
 
@@ -164,7 +177,29 @@ class Parser:
         self._locals: list[Obj] = []
         self._globals: list[Obj] = []
 
+        # Stack of block scopes, innermost last. Variable lookups walk this
+        # from the end (innermost) backward, so a declaration in a nested
+        # block shadows one of the same name in an enclosing block.
+        self._scopes: list[Scope] = [Scope()]
+
         self._nextUniqueId: CInt = 0
+
+    def _enterScope(self) -> None:
+        """Pushes a new, empty block scope."""
+        self._scopes.append(Scope())
+
+    def _leaveScope(self) -> None:
+        """Pops the innermost block scope."""
+        self._scopes.pop()
+
+    def _pushScope(self, name: str, var: Obj) -> None:
+        """Binds a name to a variable in the current (innermost) scope.
+
+        Args:
+            name (str): The name to bind.
+            var (Obj): The variable the name should resolve to.
+        """
+        self._scopes[-1].vars.append((name, var))
 
     def _expect(self, s: str) -> None:
         """Consumes the current token if it matches the expected string.
@@ -198,21 +233,22 @@ class Parser:
         return False
 
     def _findVar(self, tok: Token) -> Obj | None:
-        """Finds a local or global variable by name.
+        """Finds a variable by name, honoring block scope.
+
+        Scopes are searched innermost-first, so a declaration in a nested
+        block correctly shadows one of the same name in an enclosing
+        block or at global scope.
 
         Args:
             tok (Token): The identifier token to search for.
 
         Returns:
-            Obj | None: The matching local or global variable, or None if no match is found.
+            Obj | None: The matching variable, or None if no match is found.
         """
-        for lvar in self._locals:
-            if lvar.name == tok.lexeme:
-                return lvar
-
-        for gvar in self._globals:
-            if gvar.name == tok.lexeme:
-                return gvar
+        for scope in reversed(self._scopes):
+            for name, var in reversed(scope.vars):
+                if name == tok.lexeme:
+                    return var
 
         return None
 
@@ -570,6 +606,8 @@ class Parser:
         """
         body: list[Node] = []
 
+        self._enterScope()
+
         while not equal(self._tokens[0], "}"):
             if isTypename(self._tokens[0]):
                 node = self._declaration()
@@ -578,6 +616,8 @@ class Parser:
 
             addDtype(node, self._errorReporter)
             body.append(node)
+
+        self._leaveScope()
 
         self._expect("}")
 
@@ -842,6 +882,7 @@ class Parser:
         var = self._newVar(name, dtype)
         var.isLocal = True
         self._locals.append(var)
+        self._pushScope(name, var)
         return var
 
     def _newGVar(self, name: str, dtype: Dtype) -> Obj:
@@ -856,6 +897,7 @@ class Parser:
         """
         var = self._newVar(name, dtype)
         self._globals.append(var)
+        self._pushScope(name, var)
         return var
 
     def _newUniqueName(self) -> str:
@@ -1032,6 +1074,8 @@ class Parser:
         # Each function has its own local symbol table.
         self._locals.clear()
 
+        self._enterScope()
+
         self._createParamLVars(dtype.params)
         fn.params = self._locals.copy()
 
@@ -1039,6 +1083,8 @@ class Parser:
         self._expect("{")
         fn.body = self._compoundStmt(tok)
         fn.locals = self._locals.copy()
+
+        self._leaveScope()
 
         return fn
 
