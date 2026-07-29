@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import Enum, auto
 
 from pychibicc.ctype.cint import CInt
@@ -71,6 +71,24 @@ class Node:
     var: Obj | None = None  # Used if kind == NodeKind.VAR
     val: CInt = 0  # Used if kind == NodeKind.NUM
 
+    @property
+    def children(self):
+        """Iterates over this node's child AST nodes.
+
+        Yields:
+            Node: Each child node referenced by this node, including nodes stored
+                directly in fields and nodes contained in list-valued fields.
+        """
+        for nodeField in fields(self):
+            value = getattr(self, nodeField.name)
+
+            if isinstance(value, Node):
+                yield value
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, Node):
+                        yield item
+
 
 def addDtype(node: Node | None, errorReporter: ErrorReporter) -> None:
     """Annotates the AST with type information.
@@ -79,24 +97,13 @@ def addDtype(node: Node | None, errorReporter: ErrorReporter) -> None:
         node (Node | None): The AST node to annotate.
         errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
     """
+    from pychibicc.syntax.formatting import formatNode
+
     if node is None or node.dtype is not None:
         return
 
-    addDtype(node.lhs, errorReporter)
-    addDtype(node.rhs, errorReporter)
-    addDtype(node.cond, errorReporter)
-    addDtype(node.then, errorReporter)
-    addDtype(node.els, errorReporter)
-    addDtype(node.init, errorReporter)
-    addDtype(node.inc, errorReporter)
-
-    for stmt in node.body:
-        addDtype(stmt, errorReporter)
-
-    for arg in node.args:
-        addDtype(arg, errorReporter)
-
-    from pychibicc.syntax.formatting import formatNode
+    for child in node.children:
+        addDtype(child, errorReporter)
 
     match node.kind:
         case NodeKind.ADD | NodeKind.SUB | NodeKind.MUL | NodeKind.DIV | NodeKind.NEG:
