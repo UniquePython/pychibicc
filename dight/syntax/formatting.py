@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pychibicc.frontend.tokens import Token, TokenKind
-from pychibicc.syntax.dtypes import Dtype, DtypeKind
-from pychibicc.syntax.nodes import Node, NodeKind
+from dight.frontend.tokens import Token, TokenKind
+from dight.syntax.dtypes import Dtype, DtypeKind
+from dight.syntax.nodes import Node, NodeKind
 
 
 def _formatStringLiteral(data: str) -> str:

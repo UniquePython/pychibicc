@@ -4,13 +4,13 @@ import typing
 from dataclasses import dataclass, field, fields
 from enum import Enum, auto
 
-from pychibicc.ctype.cint import CInt
-from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.frontend.tokens import Token
-from pychibicc.syntax.dtypes import Dtype, DtypeKind, dtypeInt, pointerTo
+from dight.ctype.cint import CInt
+from dight.diagnostics.error_reporter import ErrorReporter
+from dight.frontend.tokens import Token
+from dight.syntax.dtypes import Dtype, DtypeKind, dtypeInt, pointerTo
 
 if typing.TYPE_CHECKING:
-    from pychibicc.syntax.objects import Obj
+    from dight.syntax.objects import Obj
 
 
 class NodeKind(Enum):
@@ -97,7 +97,7 @@ def addDtype(node: Node | None, errorReporter: ErrorReporter) -> None:
         node (Node | None): The AST node to annotate.
         errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
     """
-    from pychibicc.syntax.formatting import formatNode
+    from dight.syntax.formatting import formatNode
 
     if node is None or node.dtype is not None:
         return

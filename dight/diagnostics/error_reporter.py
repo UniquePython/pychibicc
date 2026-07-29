@@ -1,7 +1,7 @@
 import sys
 
-from pychibicc.ctype.cint import CInt
-from pychibicc.frontend.tokens import Token
+from dight.ctype.cint import CInt
+from dight.frontend.tokens import Token
 
 _WHITE = "\033[97m"
 _GREEN = "\033[32m"

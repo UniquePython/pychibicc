@@ -1,11 +1,11 @@
 from collections import deque
 from dataclasses import dataclass, field
 
-from pychibicc.ctype.cint import CInt
-from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.frontend.tokenizer import isTypename
-from pychibicc.frontend.tokens import Token, TokenKind
-from pychibicc.syntax.dtypes import (
+from dight.ctype.cint import CInt
+from dight.diagnostics.error_reporter import ErrorReporter
+from dight.frontend.tokenizer import isTypename
+from dight.frontend.tokens import Token, TokenKind
+from dight.syntax.dtypes import (
     Dtype,
     DtypeKind,
     arrayOf,
@@ -15,8 +15,8 @@ from pychibicc.syntax.dtypes import (
     funcType,
     pointerTo,
 )
-from pychibicc.syntax.formatting import formatNode, formatToken
-from pychibicc.syntax.node_constructors import (
+from dight.syntax.formatting import formatNode, formatToken
+from dight.syntax.node_constructors import (
     newAdd,
     newBinary,
     newBlock,
@@ -27,8 +27,8 @@ from pychibicc.syntax.node_constructors import (
     newUnary,
     newVarNode,
 )
-from pychibicc.syntax.nodes import Node, NodeKind, addDtype
-from pychibicc.syntax.objects import Obj
+from dight.syntax.nodes import Node, NodeKind, addDtype
+from dight.syntax.objects import Obj
 
 
 def _getIdent(tok: Token, errorReporter: ErrorReporter) -> str:
@@ -960,7 +960,7 @@ class Parser:
         Returns:
             str: A unique symbol name.
         """
-        name = f".pychibicc.symbol.{self._nextUniqueId}"
+        name = f".dight.symbol.{self._nextUniqueId}"
         self._nextUniqueId += 1
         return name
 

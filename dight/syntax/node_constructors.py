@@ -1,10 +1,10 @@
-from pychibicc.ctype.cint import CInt
-from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.frontend.tokens import Token
-from pychibicc.syntax.dtypes import dtypeInt, isInteger
-from pychibicc.syntax.formatting import formatDtype
-from pychibicc.syntax.nodes import Node, NodeKind, addDtype
-from pychibicc.syntax.objects import Obj
+from dight.ctype.cint import CInt
+from dight.diagnostics.error_reporter import ErrorReporter
+from dight.frontend.tokens import Token
+from dight.syntax.dtypes import dtypeInt, isInteger
+from dight.syntax.formatting import formatDtype
+from dight.syntax.nodes import Node, NodeKind, addDtype
+from dight.syntax.objects import Obj
 
 
 def newNode(kind: NodeKind, tok: Token) -> Node:

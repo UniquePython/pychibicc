@@ -4,11 +4,11 @@ import argparse
 import sys
 from typing import TextIO
 
-from pychibicc.backend.asm_writer import AsmWriter, Syntax
-from pychibicc.backend.codegen import CodeGenerator
-from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.frontend.tokenizer import Tokenizer
-from pychibicc.parser.parser import Parser
+from dight.backend.asm_writer import AsmWriter, Syntax
+from dight.backend.codegen import CodeGenerator
+from dight.diagnostics.error_reporter import ErrorReporter
+from dight.frontend.tokenizer import Tokenizer
+from dight.parser.parser import Parser
 
 
 def readFile(path: str) -> str:
@@ -75,7 +75,7 @@ def main() -> None:
     3. Parse tokens into an AST.
     4. Traverse AST and emit assembly.
     """
-    cli = argparse.ArgumentParser(prog="pychibicc")
+    cli = argparse.ArgumentParser(prog="dight")
 
     cli.add_argument(
         "source",

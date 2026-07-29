@@ -1,10 +1,10 @@
-from pychibicc.backend.asm_writer import AsmWriter, Syntax
-from pychibicc.ctype.cint import CInt
-from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.syntax.dtypes import Dtype, DtypeKind
-from pychibicc.syntax.formatting import formatDtype, formatNode
-from pychibicc.syntax.nodes import Node, NodeKind
-from pychibicc.syntax.objects import Obj
+from dight.backend.asm_writer import AsmWriter, Syntax
+from dight.ctype.cint import CInt
+from dight.diagnostics.error_reporter import ErrorReporter
+from dight.syntax.dtypes import Dtype, DtypeKind
+from dight.syntax.formatting import formatDtype, formatNode
+from dight.syntax.nodes import Node, NodeKind
+from dight.syntax.objects import Obj
 
 _BYTE_NAMES = {
     0: "'\\0'",

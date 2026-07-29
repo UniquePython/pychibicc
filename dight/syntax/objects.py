@@ -3,11 +3,11 @@ from __future__ import annotations
 import typing
 from dataclasses import dataclass, field
 
-from pychibicc.ctype.cint import CInt
-from pychibicc.syntax.dtypes import Dtype
+from dight.ctype.cint import CInt
+from dight.syntax.dtypes import Dtype
 
 if typing.TYPE_CHECKING:
-    from pychibicc.syntax.nodes import Node
+    from dight.syntax.nodes import Node
 
 
 @dataclass

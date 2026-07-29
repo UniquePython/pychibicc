@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pychibicc.ctype.cint import CInt
+from dight.ctype.cint import CInt
 
 
 class Syntax(StrEnum):
@@ -116,7 +116,7 @@ class AsmWriter:
         Returns:
             str: The formatted label.
         """
-        return f".pychibicc.{name}"
+        return f".dight.{name}"
 
     def emitLabel(self, name: str) -> None:
         """Emits a label.

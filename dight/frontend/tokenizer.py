@@ -1,7 +1,7 @@
-from pychibicc.ctype.cint import CInt
-from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.frontend.tokens import Token, TokenKind
-from pychibicc.syntax.dtypes import arrayOf, dtypeChar
+from dight.ctype.cint import CInt
+from dight.diagnostics.error_reporter import ErrorReporter
+from dight.frontend.tokens import Token, TokenKind
+from dight.syntax.dtypes import arrayOf, dtypeChar
 
 
 def _isIdentFirst(c: str) -> bool:

@@ -1,6 +1,6 @@
 #include "test.h"
 
-// Tests for pychibicc's non-standard extensions to chibicc: _Unless,
+// Tests for dight's non-standard extensions to chibicc: _Unless,
 // _Until, _Loop, _Forever, _Infer, and _Constexpr, plus comment support.
 
 int ret3()

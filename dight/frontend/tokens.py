@@ -4,10 +4,10 @@ import typing
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from pychibicc.ctype.cint import CInt
+from dight.ctype.cint import CInt
 
 if typing.TYPE_CHECKING:
-    from pychibicc.syntax.dtypes import Dtype
+    from dight.syntax.dtypes import Dtype
 
 
 class TokenKind(Enum):
