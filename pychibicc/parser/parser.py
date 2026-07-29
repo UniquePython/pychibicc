@@ -297,13 +297,13 @@ class Parser:
             ```
             stmt = "return" expr ";"
                 | "if" "(" expr ")" stmt ("else" stmt)?
-                | "unless" "(" expr ")" stmt ("else" stmt)?
+                | "_Unless" "(" expr ")" stmt ("else" stmt)?
                 | "for" "(" expr-stmt expr? ";" expr? ")" stmt
                 | "while" "(" expr ")" stmt
-                | "until" "(" expr ")" stmt
-                | "loop" "(" expr ")" stmt
-                | "forever" stmt
-                | "infer" ident "=" expr ";"
+                | "_Until" "(" expr ")" stmt
+                | "_Loop" "(" expr ")" stmt
+                | "_Forever" stmt
+                | "_Infer" ident "=" expr ";"
                 | "{" compound-stmt
                 | expr-stmt
             ```
@@ -336,7 +336,7 @@ class Parser:
 
             return node
 
-        if equal(self._tokens[0], "unless"):
+        if equal(self._tokens[0], "_Unless"):
             tok = self._tokens.popleft()
 
             node = newNode(NodeKind.IF, tok)
@@ -385,7 +385,7 @@ class Parser:
             node.then = self._stmt()
             return node
 
-        if equal(self._tokens[0], "until"):
+        if equal(self._tokens[0], "_Until"):
             tok = self._tokens.popleft()
 
             node = newNode(NodeKind.FOR, tok)
@@ -397,7 +397,7 @@ class Parser:
             node.then = self._stmt()
             return node
 
-        if equal(self._tokens[0], "loop"):
+        if equal(self._tokens[0], "_Loop"):
             tok = self._tokens.popleft()
 
             self._expect("(")
@@ -444,7 +444,7 @@ class Parser:
             node.then = self._stmt()
             return node
 
-        if equal(self._tokens[0], "forever"):
+        if equal(self._tokens[0], "_Forever"):
             tok = self._tokens.popleft()
 
             node = newNode(NodeKind.FOR, tok)
@@ -452,7 +452,7 @@ class Parser:
 
             return node
 
-        if equal(self._tokens[0], "infer"):
+        if equal(self._tokens[0], "_Infer"):
             tok = self._tokens.popleft()
 
             nameTok = self._tokens.popleft()
