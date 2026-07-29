@@ -14,7 +14,7 @@ from pychibicc.syntax.dtypes import (
     funcType,
     pointerTo,
 )
-from pychibicc.syntax.formatting import formatToken
+from pychibicc.syntax.formatting import formatNode, formatToken
 from pychibicc.syntax.node_constructors import (
     newAdd,
     newBinary,
@@ -70,6 +70,63 @@ def _getNumber(tok: Token, errorReporter: ErrorReporter) -> CInt:
         )
 
     return tok.val
+
+
+def _evalConst(node: Node, errorReporter: ErrorReporter) -> CInt:
+    """Evaluates a constant expression at compile time.
+
+    Only expressions built entirely out of integer literals and the basic
+    arithmetic operators (+, -, *, /, unary -) can be folded this way;
+    anything else (variables, function calls, pointer operations, ...)
+    is rejected with an error pointing at the offending subexpression.
+
+    Args:
+        node (Node): The expression to evaluate.
+        errorReporter (ErrorReporter): The error reporter initialized with the source code that produced the token stream.
+
+    Returns:
+        CInt: The expression's compile-time value.
+
+    Raises:
+        SystemExit: If the expression is not a constant expression, or if
+            it involves division or modulo by zero.
+    """
+    match node.kind:
+        case NodeKind.NUM:
+            return node.val
+
+        case NodeKind.NEG:
+            return -_evalConst(node.lhs, errorReporter)
+
+        case NodeKind.ADD:
+            return _evalConst(node.lhs, errorReporter) + _evalConst(
+                node.rhs, errorReporter
+            )
+
+        case NodeKind.SUB:
+            return _evalConst(node.lhs, errorReporter) - _evalConst(
+                node.rhs, errorReporter
+            )
+
+        case NodeKind.MUL:
+            return _evalConst(node.lhs, errorReporter) * _evalConst(
+                node.rhs, errorReporter
+            )
+
+        case NodeKind.DIV:
+            lhs = _evalConst(node.lhs, errorReporter)
+            rhs = _evalConst(node.rhs, errorReporter)
+
+            if rhs == 0:
+                errorReporter.errorTok(node.rhs.tok, "division by zero")
+
+            return lhs // rhs
+
+        case _:
+            errorReporter.errorTok(
+                node.tok,
+                f"{formatNode(node)} is not a compile-time constant expression",
+            )
 
 
 class Parser:
@@ -847,7 +904,13 @@ class Parser:
 
         ## Grammar:
             ```
-            primary = "(" "{" stmt+ "}" ")" | "(" expr ")" | "sizeof" unary | ident func-args? | str | num
+            primary = "(" "{" stmt+ "}" ")"
+                      | "(" expr ")"
+                      | "sizeof" unary
+                      | "_Comptime" "(" expr ")"
+                      | ident func-args?
+                      | str
+                      | num
             ```
 
         Returns:
@@ -880,6 +943,15 @@ class Parser:
             addDtype(node, self._errorReporter)
 
             return newNum(node.dtype.size, tok)
+
+        if equal(self._tokens[0], "_Comptime"):
+            tok = self._tokens.popleft()
+
+            self._expect("(")
+            node = self._expr()
+            self._expect(")")
+
+            return newNum(_evalConst(node, self._errorReporter), tok)
 
         tok = self._tokens[0]
 

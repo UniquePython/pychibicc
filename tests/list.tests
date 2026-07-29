@@ -123,15 +123,6 @@
 4 int main() { int x[2][3]; int *y=x; y[4]=4; return x[1][1]; }
 5 int main() { int x[2][3]; int *y=x; y[5]=5; return x[1][2]; }
 
-5 int main() { _Infer x = 5; return x; }
-7 int main() { _Infer x = 5; _Infer y = x + 2; return y; }
-10 int main() { int a = 10; _Infer p = &a; return *p; }
-65 int main() { char c = 65; _Infer x = c; return x; }
-3 int main() { _Infer x = ret3(); return x; }
-55 int main() { _Infer i = 0; _Infer j = 0; _Loop(10) {i = i+1; j = i+j;} return j; }
-32 int main() { _Infer x = 5; return sizeof(x) * 4; }
-1 int main() { _Infer x = 3; _Infer y = 4; return x < y; }
-
 8 int main() { int x; return sizeof(x); }
 8 int main() { int x; return sizeof x; }
 8 int main() { int *x; return sizeof(x); }
@@ -144,6 +135,21 @@
 8 int main() { int x[3][4]; return sizeof(**x + 1); }
 8 int main() { int x=1; return sizeof(x=2); }
 1 int main() { int x=1; sizeof(x=2); return x; }
+
+5 int main() { _Infer x = 5; return x; }
+7 int main() { _Infer x = 5; _Infer y = x + 2; return y; }
+10 int main() { int a = 10; _Infer p = &a; return *p; }
+65 int main() { char c = 65; _Infer x = c; return x; }
+3 int main() { _Infer x = ret3(); return x; }
+55 int main() { _Infer i = 0; _Infer j = 0; _Loop(10) {i = i+1; j = i+j;} return j; }
+32 int main() { _Infer x = 5; return sizeof(x) * 4; }
+1 int main() { _Infer x = 3; _Infer y = 4; return x < y; }
+
+14 int main() { return _Comptime(2 + 3 * (10 - 6)); }
+12 int main() { return _Comptime(_Comptime(2 + 2) * 3); }
+5 int main() { return _Comptime(-5 + 10); }
+# 253 because evaluated value should be -3, but exit code is 256 + (-3) = 253
+253 int main() { return _Comptime(-7 / 2); }
 
 0 int x; int main() { return x; }
 3 int x; int main() { x=3; return x; }
