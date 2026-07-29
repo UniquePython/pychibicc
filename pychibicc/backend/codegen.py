@@ -337,7 +337,9 @@ class CodeGenerator:
                 return
 
             case NodeKind.FOR:
-                if node.init is None and node.inc is None:
+                if node.init is None and node.cond is None and node.inc is None:
+                    self._w.comment("forever")
+                elif node.init is None and node.inc is None:
                     self._w.comment(f"while ({formatNode(node.cond)})")
                 else:
                     self._w.comment(
