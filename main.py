@@ -11,7 +11,7 @@ from pychibicc.frontend.tokenizer import Tokenizer
 from pychibicc.parser.parser import Parser
 
 
-def read_file(path: str) -> str:
+def readFile(path: str) -> str:
     """Read the contents of a source file.
 
     A path of "-" is treated specially and causes input to be read
@@ -42,11 +42,10 @@ def read_file(path: str) -> str:
     return content
 
 
-def open_file(path: str | None) -> TextIO:
+def openFile(path: str | None) -> TextIO:
     """Open an output file.
 
-    A path of None or "-" writes output to stdout, matching the behavior
-    of chibicc's open_file() helper.
+    A path of None or "-" writes output to stdout.
 
     Args:
         path: Output path, or None / "-" for stdout.
@@ -69,7 +68,7 @@ def open_file(path: str | None) -> TextIO:
 def main() -> None:
     """Compile a C source file into assembly.
 
-    The compilation pipeline follows the same stages as chibicc:
+    The compilation pipeline follows the following stages:
 
     1. Read source file.
     2. Tokenize source.
@@ -100,35 +99,35 @@ def main() -> None:
 
     args = cli.parse_args()
 
-    source_path: str = args.source
-    output_path: str | None = args.o
+    sourcePath: str = args.source
+    outputPath: str | None = args.o
     syntax: Syntax = args.syntax
 
-    source: str = read_file(source_path)
+    source: str = readFile(sourcePath)
 
-    filename: str = "<stdin>" if source_path == "-" else source_path
+    filename: str = "<stdin>" if sourcePath == "-" else sourcePath
 
-    error_reporter = ErrorReporter(source, filename)
+    errorReporter = ErrorReporter(source, filename)
 
     # Tokenize and parse.
-    tokenizer = Tokenizer(error_reporter)
+    tokenizer = Tokenizer(errorReporter)
     tokens = tokenizer.tokenize()
 
-    parser = Parser(error_reporter, tokens)
+    parser = Parser(errorReporter, tokens)
     program = parser.parse()
 
     # Traverse the AST to emit assembly.
-    output = open_file(output_path)
+    output = openFile(outputPath)
 
     try:
-        asm_writer = AsmWriter(syntax)
+        asmWriter = AsmWriter(syntax)
 
-        code_generator = CodeGenerator(
-            asm_writer,
-            error_reporter,
+        codeGenerator = CodeGenerator(
+            asmWriter,
+            errorReporter,
         )
 
-        assembly: str = code_generator.codegen(program)
+        assembly: str = codeGenerator.codegen(program)
         output.write(assembly)
 
     finally:
