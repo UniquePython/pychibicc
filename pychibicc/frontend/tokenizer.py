@@ -134,7 +134,7 @@ _KEYWORDS = {
     "_Forever",
     "_Infer",
     "sizeof",
-    "_Comptime",
+    "_Constexpr",
     "int",
     "char",
 }

@@ -969,7 +969,7 @@ class Parser:
             primary = "(" "{" stmt+ "}" ")"
                       | "(" expr ")"
                       | "sizeof" unary
-                      | "_Comptime" "(" expr ")"
+                      | "_Constexpr" "(" expr ")"
                       | ident func-args?
                       | str
                       | num
@@ -1006,7 +1006,7 @@ class Parser:
 
             return newNum(node.dtype.size, tok)
 
-        if equal(self._tokens[0], "_Comptime"):
+        if equal(self._tokens[0], "_Constexpr"):
             tok = self._tokens.popleft()
 
             self._expect("(")

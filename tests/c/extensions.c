@@ -1,21 +1,26 @@
 #include "test.h"
 
 // Tests for pychibicc's non-standard extensions to chibicc: _Unless,
-// _Until, _Loop, _Forever, _Infer, and _Comptime, plus comment support.
+// _Until, _Loop, _Forever, _Infer, and _Constexpr, plus comment support.
 
-int ret3() {
+int ret3()
+{
   return 3;
 }
 
-int forever_test() {
+int forever_test()
+{
   int i = 0;
-  _Forever {
+  _Forever
+  {
     i = i + 1;
-    if (i == 5) return i;
+    if (i == 5)
+      return i;
   }
 }
 
-int main() {
+int main()
+{
   // _Unless: sugar for "if (!expr)".
   ASSERT(2, ({ int x; _Unless (0) x=2; else x=3; x; }));
   ASSERT(2, ({ int x; _Unless (1-1) x=2; else x=3; x; }));
@@ -48,35 +53,35 @@ int main() {
   ASSERT(32, ({ _Infer x = 5; sizeof(x) * 4; }));
   ASSERT(1, ({ _Infer x = 3; _Infer y = 4; x < y; }));
 
-  // _Comptime: folds a constant expression at compile time.
-  ASSERT(14, _Comptime(2 + 3 * (10 - 6)));
-  ASSERT(12, _Comptime(_Comptime(2 + 2) * 3));
-  ASSERT(5, _Comptime(-5 + 10));
+  // _Constexpr: folds a constant expression at compile time.
+  ASSERT(14, _Constexpr(2 + 3 * (10 - 6)));
+  ASSERT(12, _Constexpr(_Constexpr(2 + 2) * 3));
+  ASSERT(5, _Constexpr(-5 + 10));
 
-  ASSERT(1, _Comptime(3 == 3));
-  ASSERT(0, _Comptime(3 == 4));
-  ASSERT(0, _Comptime(3 != 3));
-  ASSERT(1, _Comptime(3 != 4));
+  ASSERT(1, _Constexpr(3 == 3));
+  ASSERT(0, _Constexpr(3 == 4));
+  ASSERT(0, _Constexpr(3 != 3));
+  ASSERT(1, _Constexpr(3 != 4));
 
-  ASSERT(1, _Comptime(2 < 3));
-  ASSERT(0, _Comptime(3 < 3));
-  ASSERT(0, _Comptime(4 < 3));
+  ASSERT(1, _Constexpr(2 < 3));
+  ASSERT(0, _Constexpr(3 < 3));
+  ASSERT(0, _Constexpr(4 < 3));
 
-  ASSERT(1, _Comptime(2 <= 3));
-  ASSERT(1, _Comptime(3 <= 3));
-  ASSERT(0, _Comptime(4 <= 3));
+  ASSERT(1, _Constexpr(2 <= 3));
+  ASSERT(1, _Constexpr(3 <= 3));
+  ASSERT(0, _Constexpr(4 <= 3));
 
-  ASSERT(1, _Comptime(3 > 2));
-  ASSERT(0, _Comptime(3 > 3));
-  ASSERT(0, _Comptime(3 > 4));
+  ASSERT(1, _Constexpr(3 > 2));
+  ASSERT(0, _Constexpr(3 > 3));
+  ASSERT(0, _Constexpr(3 > 4));
 
-  ASSERT(1, _Comptime(3 >= 2));
-  ASSERT(1, _Comptime(3 >= 3));
-  ASSERT(0, _Comptime(3 >= 4));
+  ASSERT(1, _Constexpr(3 >= 2));
+  ASSERT(1, _Constexpr(3 >= 3));
+  ASSERT(0, _Constexpr(3 >= 4));
 
-  ASSERT(1, _Comptime(1 + 1 == 2));
-  ASSERT(1, _Comptime((5 - 2) * 2 >= 6));
-  ASSERT(0, _Comptime(_Comptime(2 * 3) != 6));
+  ASSERT(1, _Constexpr(1 + 1 == 2));
+  ASSERT(1, _Constexpr((5 - 2) * 2 >= 6));
+  ASSERT(0, _Constexpr(_Constexpr(2 * 3) != 6));
 
   // Line and block comments.
   ASSERT(2, ({ /* return 1; */ 2; })); // trailing line comment
