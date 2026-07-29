@@ -77,6 +77,35 @@ def _isHexDigit(c: str) -> bool:
     return c.lower() in "0123456789abcdef"
 
 
+_PUNCTUATORS = sorted(
+    [
+        "==",
+        "!=",
+        "<=",
+        ">=",
+        "+",
+        "-",
+        "*",
+        "&",
+        "/",
+        "(",
+        ")",
+        "<",
+        ">",
+        "!",
+        "=",
+        "{",
+        "}",
+        "[",
+        "]",
+        ",",
+        ";",
+    ],
+    key=len,
+    reverse=True,
+)
+
+
 def _readPunct(source: str) -> CInt:
     """Reads a punctuator from the beginning of the string.
 
@@ -86,11 +115,9 @@ def _readPunct(source: str) -> CInt:
     Returns:
         CInt: The length of the punctuator, or 0 if none is found.
     """
-    if source.startswith(("==", "!=", "<=", ">=")):
-        return 2
-
-    if source and source[0] in "+-*&/()<>!={}[],;":
-        return 1
+    for punct in _PUNCTUATORS:
+        if source.startswith(punct):
+            return len(punct)
 
     return 0
 
@@ -111,32 +138,6 @@ _KEYWORDS = {
     "int",
     "char",
 }
-
-
-def _isKeyword(tok: Token) -> bool:
-    """Returns whether the specified token is a keyword.
-
-    Args:
-        tok (Token): The token to check.
-
-    Returns:
-        bool: True if the token is a keyword, otherwise False.
-    """
-    return tok.lexeme in _KEYWORDS
-
-
-def _convertKeywords(tokens: list[Token]) -> None:
-    """Converts identifier tokens that are keywords into keyword tokens.
-
-    Args:
-        tokens (list[Token]): The token stream.
-    """
-    for tok in tokens:
-        if tok.kind == TokenKind.EOF:
-            break
-
-        if _isKeyword(tok):
-            tok.kind = TokenKind.KEYWORD
 
 
 class Tokenizer:
@@ -338,10 +339,14 @@ class Tokenizer:
                 while idx < len(self._source) and _isIdentNonFirst(self._source[idx]):
                     idx += 1
 
+                lexeme = self._source[start:idx]
+
                 tokens.append(
                     Token(
-                        kind=TokenKind.IDENT,
-                        lexeme=self._source[start:idx],
+                        kind=TokenKind.KEYWORD
+                        if lexeme in _KEYWORDS
+                        else TokenKind.IDENT,
+                        lexeme=lexeme,
                         pos=start,
                         length=idx - start,
                     )
@@ -368,5 +373,4 @@ class Tokenizer:
             self._errorReporter.errorAt(idx, f"invalid token: '{self._source[idx]}'")
 
         tokens.append(Token(TokenKind.EOF, pos=len(self._source)))
-        _convertKeywords(tokens)
         return tokens
