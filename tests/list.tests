@@ -150,6 +150,25 @@
 5 int main() { return _Comptime(-5 + 10); }
 # 253 because evaluated value should be -3, but exit code is 256 + (-3) = 253
 253 int main() { return _Comptime(-7 / 2); }
+1 int main() { return _Comptime(3 == 3); }
+0 int main() { return _Comptime(3 == 4); }
+0 int main() { return _Comptime(3 != 3); }
+1 int main() { return _Comptime(3 != 4); }
+1 int main() { return _Comptime(2 < 3); }
+0 int main() { return _Comptime(3 < 3); }
+0 int main() { return _Comptime(4 < 3); }
+1 int main() { return _Comptime(2 <= 3); }
+1 int main() { return _Comptime(3 <= 3); }
+0 int main() { return _Comptime(4 <= 3); }
+1 int main() { return _Comptime(3 > 2); }
+0 int main() { return _Comptime(3 > 3); }
+0 int main() { return _Comptime(3 > 4); }
+1 int main() { return _Comptime(3 >= 2); }
+1 int main() { return _Comptime(3 >= 3); }
+0 int main() { return _Comptime(3 >= 4); }
+1 int main() { return _Comptime(1 + 1 == 2); }
+1 int main() { return _Comptime((5 - 2) * 2 >= 6); }
+0 int main() { return _Comptime(_Comptime(2 * 3) != 6); }
 
 0 int x; int main() { return x; }
 3 int x; int main() { x=3; return x; }

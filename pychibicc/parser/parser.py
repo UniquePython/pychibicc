@@ -122,6 +122,26 @@ def _evalConst(node: Node, errorReporter: ErrorReporter) -> CInt:
 
             return lhs // rhs
 
+        case NodeKind.EQ:
+            lhs = _evalConst(node.lhs, errorReporter)
+            rhs = _evalConst(node.rhs, errorReporter)
+            return CInt(1) if lhs == rhs else CInt(0)
+
+        case NodeKind.NE:
+            lhs = _evalConst(node.lhs, errorReporter)
+            rhs = _evalConst(node.rhs, errorReporter)
+            return CInt(1) if lhs != rhs else CInt(0)
+
+        case NodeKind.LT:
+            lhs = _evalConst(node.lhs, errorReporter)
+            rhs = _evalConst(node.rhs, errorReporter)
+            return CInt(1) if lhs < rhs else CInt(0)
+
+        case NodeKind.LE:
+            lhs = _evalConst(node.lhs, errorReporter)
+            rhs = _evalConst(node.rhs, errorReporter)
+            return CInt(1) if lhs <= rhs else CInt(0)
+
         case _:
             errorReporter.errorTok(
                 node.tok,
