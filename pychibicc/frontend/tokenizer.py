@@ -4,18 +4,6 @@ from pychibicc.frontend.tokens import Token, TokenKind
 from pychibicc.syntax.dtypes import arrayOf, dtypeChar
 
 
-def isTypename(tok: Token) -> bool:
-    """Returns whether the given token is a type name or not.
-
-    Args:
-        tok (Token): The token to compare.
-
-    Returns:
-        bool: True if the token exactly matches a type name, otherwise False.
-    """
-    return tok.lexeme == "char" or tok.lexeme == "int"
-
-
 def _isIdentFirst(c: str) -> bool:
     """Returns whether the character is valid as the first character of an identifier.
 
@@ -64,33 +52,32 @@ def _isHexDigit(c: str) -> bool:
     return c.lower() in "0123456789abcdef"
 
 
-_PUNCTUATORS = sorted(
-    [
-        "==",
-        "!=",
-        "<=",
-        ">=",
-        "+",
-        "-",
-        "*",
-        "&",
-        "/",
-        "(",
-        ")",
-        "<",
-        ">",
-        "!",
-        "=",
-        "{",
-        "}",
-        "[",
-        "]",
-        ",",
-        ";",
-    ],
-    key=len,
-    reverse=True,
-)
+_TWO_CHAR_PUNCTS = {
+    "==",
+    "!=",
+    "<=",
+    ">=",
+}
+
+_SINGLE_CHAR_PUNCTS = {
+    "+",
+    "-",
+    "*",
+    "&",
+    "/",
+    "(",
+    ")",
+    "<",
+    ">",
+    "!",
+    "=",
+    "{",
+    "}",
+    "[",
+    "]",
+    ",",
+    ";",
+}
 
 
 def _readPunct(source: str) -> CInt:
@@ -102,11 +89,18 @@ def _readPunct(source: str) -> CInt:
     Returns:
         CInt: The length of the punctuator, or 0 if none is found.
     """
-    for punct in _PUNCTUATORS:
-        if source.startswith(punct):
-            return len(punct)
+    if source[:2] in _TWO_CHAR_PUNCTS:
+        return CInt(2)
+    elif source[:1] in _SINGLE_CHAR_PUNCTS:
+        return CInt(1)
+    else:
+        return CInt(0)
 
-    return 0
+
+_TYPE_NAMES = {
+    "int",
+    "char",
+}
 
 
 _KEYWORDS = {
@@ -122,8 +116,31 @@ _KEYWORDS = {
     "_Infer",
     "sizeof",
     "_Constexpr",
-    "int",
-    "char",
+    *_TYPE_NAMES,
+}
+
+
+def isTypename(tok: Token) -> bool:
+    """Returns whether the given token is a type name or not.
+
+    Args:
+        tok (Token): The token to compare.
+
+    Returns:
+        bool: True if the token exactly matches a type name, otherwise False.
+    """
+    return tok.lexeme in _TYPE_NAMES
+
+
+_ESCAPES = {
+    "a": "\a",
+    "b": "\b",
+    "t": "\t",
+    "n": "\n",
+    "v": "\v",
+    "f": "\f",
+    "r": "\r",
+    "e": chr(27),  # GNU extension
 }
 
 
@@ -150,16 +167,14 @@ class Tokenizer:
         """
         # Octal escape sequence.
         if "0" <= self._source[idx] <= "7":
-            c = ord(self._source[idx]) - ord("0")
-            idx += 1
+            c = 0
 
-            if idx < len(self._source) and "0" <= self._source[idx] <= "7":
+            for _ in range(3):
+                if idx >= len(self._source) or not ("0" <= self._source[idx] <= "7"):
+                    break
+
                 c = (c << 3) + (ord(self._source[idx]) - ord("0"))
                 idx += 1
-
-                if idx < len(self._source) and "0" <= self._source[idx] <= "7":
-                    c = (c << 3) + (ord(self._source[idx]) - ord("0"))
-                    idx += 1
 
             return chr(c), idx
 
@@ -172,24 +187,17 @@ class Tokenizer:
 
             c = 0
 
-            while idx < len(self._source) and _isHexDigit(self._source[idx]):
-                c = (c << 4) + _fromHex(self._source[idx])
+            while idx < len(self._source):
+                ch = self._source[idx]
+                if not _isHexDigit(ch):
+                    break
+
+                c = (c << 4) + _fromHex(ch)
                 idx += 1
 
             return chr(c), idx
 
-        escaped = {
-            "a": "\a",
-            "b": "\b",
-            "t": "\t",
-            "n": "\n",
-            "v": "\v",
-            "f": "\f",
-            "r": "\r",
-            "e": chr(27),  # GNU extension
-        }.get(self._source[idx], self._source[idx])
-
-        return escaped, idx + 1
+        return _ESCAPES.get(self._source[idx], self._source[idx]), idx + 1
 
     def _stringLiteralEnd(self, start: int) -> int:
         """Finds the closing double quote of a string literal.
@@ -206,18 +214,16 @@ class Tokenizer:
         idx = start
 
         while idx < len(self._source):
-            if self._source[idx] == '"':
+            ch = self._source[idx]
+
+            if ch == '"':
                 return idx
-
-            if self._source[idx] == "\n":
-                self._errorReporter.errorAt(start - 1, "unclosed string literal")
-
-            if self._source[idx] == "\\":
+            if ch == "\n":
+                break
+            if ch == "\\":
                 idx += 1
-
                 if idx >= len(self._source):
-                    self._errorReporter.errorAt(start - 1, "unclosed string literal")
-
+                    break
             idx += 1
 
         self._errorReporter.errorAt(start - 1, "unclosed string literal")
