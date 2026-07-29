@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 from pychibicc.ctype.cint import CInt
 from pychibicc.diagnostics.error_reporter import ErrorReporter
-from pychibicc.frontend.tokenizer import equal, isTypename
+from pychibicc.frontend.tokenizer import isTypename
 from pychibicc.frontend.tokens import Token, TokenKind
 from pychibicc.syntax.dtypes import (
     Dtype,
@@ -217,7 +217,18 @@ class Parser:
         Returns:
             bool: True if the current token matches the specified string, otherwise False.
         """
-        return equal(self._peek(), s)
+        return self._peek().lexeme == s
+
+    def _nextIs(self, s: str) -> bool:
+        """Checks whether the next token matches the specified string.
+
+        Args:
+            s (str): The string to compare against the next token.
+
+        Returns:
+            bool: True if the next token matches the specified string, otherwise False.
+        """
+        return self._peek(1).lexeme == s
 
     def _advance(self):
         """Consumes and returns the current token.
@@ -238,7 +249,7 @@ class Parser:
         """
         tok = self._advance()
 
-        if not equal(tok, s):
+        if tok.lexeme != s:
             self._errorReporter.errorTok(
                 tok, f"expected '{s}', but got {formatToken(tok)} instead"
             )
@@ -1024,7 +1035,7 @@ class Parser:
         Raises:
             SystemExit: If no valid primary expression is found.
         """
-        if self._at("(") and equal(self._peek(1), "{"):
+        if self._at("(") and self._nextIs("{"):
             # This is a GNU statement expression.
             tok = self._peek()
 
@@ -1062,7 +1073,7 @@ class Parser:
 
         if tok.kind == TokenKind.IDENT:
             # Function call
-            if len(self._tokens) > 1 and equal(self._peek(1), "("):
+            if len(self._tokens) > 1 and self._nextIs("("):
                 return self._funcall()
 
             # Variable

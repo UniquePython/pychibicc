@@ -4,19 +4,6 @@ from pychibicc.frontend.tokens import Token, TokenKind
 from pychibicc.syntax.dtypes import arrayOf, dtypeChar
 
 
-def equal(tok: Token, op: str) -> bool:
-    """Returns whether the given token matches the specified operator.
-
-    Args:
-        tok (Token): The token to compare.
-        op (str): The operator string to compare against.
-
-    Returns:
-        bool: True if the token exactly matches the operator, otherwise False.
-    """
-    return tok.lexeme == op
-
-
 def isTypename(tok: Token) -> bool:
     """Returns whether the given token is a type name or not.
 
@@ -26,7 +13,7 @@ def isTypename(tok: Token) -> bool:
     Returns:
         bool: True if the token exactly matches a type name, otherwise False.
     """
-    return equal(tok, "char") or equal(tok, "int")
+    return tok.lexeme == "char" or tok.lexeme == "int"
 
 
 def _isIdentFirst(c: str) -> bool:
