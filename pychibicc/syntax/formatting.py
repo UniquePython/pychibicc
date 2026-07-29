@@ -90,6 +90,22 @@ def formatNode(node: Node | None) -> str:
     if node is None:
         return "<none>"
 
+    BINARY_OPS = {
+        NodeKind.ADD: "+",
+        NodeKind.SUB: "-",
+        NodeKind.MUL: "*",
+        NodeKind.DIV: "/",
+        NodeKind.ASSIGN: "=",
+        NodeKind.EQ: "==",
+        NodeKind.NE: "!=",
+        NodeKind.LT: "<",
+        NodeKind.LE: "<=",
+    }
+
+    if node.kind in BINARY_OPS:
+        op = BINARY_OPS[node.kind]
+        return f"({formatNode(node.lhs)} {op} {formatNode(node.rhs)})"
+
     match node.kind:
         case NodeKind.NUM:
             return str(node.val)
@@ -101,33 +117,6 @@ def formatNode(node: Node | None) -> str:
 
         case NodeKind.NEG:
             return f"-({formatNode(node.lhs)})"
-
-        case NodeKind.ADD:
-            return f"({formatNode(node.lhs)} + {formatNode(node.rhs)})"
-
-        case NodeKind.SUB:
-            return f"({formatNode(node.lhs)} - {formatNode(node.rhs)})"
-
-        case NodeKind.MUL:
-            return f"({formatNode(node.lhs)} * {formatNode(node.rhs)})"
-
-        case NodeKind.DIV:
-            return f"({formatNode(node.lhs)} / {formatNode(node.rhs)})"
-
-        case NodeKind.ASSIGN:
-            return f"({formatNode(node.lhs)} = {formatNode(node.rhs)})"
-
-        case NodeKind.EQ:
-            return f"({formatNode(node.lhs)} == {formatNode(node.rhs)})"
-
-        case NodeKind.NE:
-            return f"({formatNode(node.lhs)} != {formatNode(node.rhs)})"
-
-        case NodeKind.LT:
-            return f"({formatNode(node.lhs)} < {formatNode(node.rhs)})"
-
-        case NodeKind.LE:
-            return f"({formatNode(node.lhs)} <= {formatNode(node.rhs)})"
 
         case NodeKind.ADDR:
             return f"&{formatNode(node.lhs)}"
